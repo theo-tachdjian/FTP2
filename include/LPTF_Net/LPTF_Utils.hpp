@@ -3,28 +3,17 @@
 
 using namespace std;
 
-typedef struct {
-    string filepath;
-    uint32_t filesize;
-} FILE_TRANSFER_REQ_PACKET_STRUCT;
-
-typedef struct {
-    uint32_t file_id;
-    uint32_t offset;
-    const void *data;
-    uint16_t len;
-} FILE_PART_PACKET_STRUCT;
-
 #include <iostream>
 
 #include "LPTF_Packet.hpp"
+#include "LPTF_Structs.hpp"
 
 LPTF_Packet build_reply_packet(uint8_t repfrom, void *repcontent, uint16_t contentsize);
 LPTF_Packet build_message_packet(const string &message);
 LPTF_Packet build_command_packet(const string &cmd, const string &arg);
 LPTF_Packet build_error_packet(uint8_t errfrom, uint8_t err_code, string &errmsg);
 
-LPTF_Packet build_file_transfer_request_packet(const string filepath, uint32_t filesize);
+LPTF_Packet build_file_transfer_request_packet(const string filepath, uint32_t filesize, bool is_download);
 
 LPTF_Packet build_file_part_packet(uint32_t file_id, uint32_t offset, void *data, uint16_t datalen);
 

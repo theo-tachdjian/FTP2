@@ -3,8 +3,18 @@
 
 #include <iostream>
 
-std::string get_host_info();
-std::string get_running_processes();
-std::string execute_shell_command(const std::string &command);
+using namespace std;
+
+// CLIENT Functions
+bool download_file(LPTF_Socket *clientSocket, string filename);
+
+bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile);
+
+
+// SERVER Functions
+
+bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename);
+
+bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, uint32_t filesize);
 
 #endif

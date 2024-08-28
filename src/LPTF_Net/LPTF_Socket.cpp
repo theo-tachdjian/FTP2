@@ -13,10 +13,12 @@
 
 
 LPTF_Socket::LPTF_Socket() {
+    sockfd = -1;
     init(AF_INET, SOCK_STREAM, 0);
 }
 
 LPTF_Socket::LPTF_Socket(int domain, int type, int protocol) {
+    sockfd = -1;
     init(domain, type, protocol);
 }
     
