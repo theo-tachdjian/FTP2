@@ -17,6 +17,9 @@ using namespace std;
 int main() {
     char ip[] = "127.0.0.1";
     int port = 12345;
+    // char file[] = "Tests/hello.txt";
+    // char outfile[] = "hello.txt";
+    char file_to_dl[] = "hello.txt";
 
     try {
         LPTF_Socket clientSocket = LPTF_Socket();
@@ -29,23 +32,9 @@ int main() {
 
         clientSocket.connect(reinterpret_cast<struct sockaddr *>(&serverAddr), sizeof(serverAddr));
 
-        // Etape 1
-        // send message
-        // cout << "Sending ping message." << endl;
+        // upload_file(&clientSocket, outfile, file);
 
-        // LPTF_Packet msg = build_message_packet("ping");
-        // ssize_t ret = clientSocket.write(msg);
-
-        // if (ret != -1) {
-        //     // read server response
-        //     LPTF_Packet resp = clientSocket.read();
-
-        //     cout << "Received: " << get_message_from_message_packet(resp) << endl;
-        // }
-
-        upload_file(&clientSocket, "hello.txt", "Tests/hello.txt");
-
-        // download_file(&clientSocket, "hello.txt");
+        download_file(&clientSocket, file_to_dl);
 
 
     } catch (const exception &ex) {

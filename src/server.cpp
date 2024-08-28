@@ -139,27 +139,30 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
     cout << "Handling client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " (" << clientAddrLen << ")" << endl;
 
     try {
-        // listen for file upload request
+        // listen for commands
 
         LPTF_Packet req = serverSocket->recv(clientSockfd, 0);
         if (req.type() == COMMAND_PACKET) {
-            cout << "Received command" << endl;
-
             string cmd = get_command_from_command_packet(req);
-            if (strcmp(cmd.c_str(), UPLOAD_FILE_COMMAND) == 0) {
-                cout << "Got Upload File Command" << endl;
 
-                FILE_TRANSFER_REQ_PACKET_STRUCT transfer_args = get_data_from_file_transfer_request_packet(req);
+            cout << "Received command " << cmd << endl;
+
+            if (strcmp(cmd.c_str(), UPLOAD_FILE_COMMAND) == 0) {
+                FILE_UPLOAD_REQ_PACKET_STRUCT transfer_args = get_data_from_file_upload_request_packet(req);
 
                 cout << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize << endl;
-                req.print_specs();
+                // req.print_specs();
 
                 receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize);
 
             } else if (strcmp(cmd.c_str(), DOWNLOAD_FILE_COMMAND) == 0) {
-                cout << "Got Download File Command" << endl;
+                string filepath = get_file_from_file_download_request_packet(req);
+
+                cout << "File to send: " << filepath << endl;
+
+                send_file(serverSocket, clientSockfd, filepath);
             } else {
-                cout << "Unknown command " << cmd << " !" << endl;
+                
             }
         }
 

@@ -35,6 +35,8 @@ typedef struct {
 } PACKET_HEADER;
 
 
+#define FILE_TRANSFER_REP_OK "OK"
+
 // constexpr uint16_t MAX_FILE_PART_BYTES = UINT16_MAX - sizeof(PACKET_HEADER) - sizeof(uint32_t) - sizeof(uint32_t);
 constexpr uint16_t MAX_FILE_PART_BYTES = 8000;
 

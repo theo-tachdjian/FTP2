@@ -1,6 +1,7 @@
 .vscode/
-client
-server
-client.exe
-server.exe
+lpf
+lpf_server
+lpf.exe
+lpf_server.exe
 Test/
+server_root/*

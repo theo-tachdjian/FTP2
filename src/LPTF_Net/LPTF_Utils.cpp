@@ -67,18 +67,9 @@ LPTF_Packet build_error_packet(uint8_t errfrom, uint8_t err_code, string &errmsg
 }
 
 
-LPTF_Packet build_file_transfer_request_packet(const string filepath, uint32_t filesize, bool is_download) {
-    // build a command packet
-
-    string command;
-
-    if (is_download) {
-        command = DOWNLOAD_FILE_COMMAND;
-    } else {
-        command = UPLOAD_FILE_COMMAND;
-    }
-
-    size_t size = command.size()+1 + filepath.size()+1 + sizeof(filesize) + sizeof(is_download);
+LPTF_Packet build_file_upload_request_packet(const string filepath, uint32_t filesize) {
+    string command = UPLOAD_FILE_COMMAND;
+    size_t size = command.size()+1 + filepath.size()+1 + sizeof(filesize);
     uint8_t *rawcontent = (uint8_t*)malloc(size);
 
     if (!rawcontent)
@@ -89,7 +80,6 @@ LPTF_Packet build_file_transfer_request_packet(const string filepath, uint32_t f
     memcpy(rawcontent, command.c_str(), command.size()+1);
     memcpy(rawcontent + command.size()+1, filepath.c_str(), filepath.size()+1);
     memcpy(rawcontent + command.size()+1 + filepath.size()+1, &filesize, sizeof(filesize));
-    memcpy(rawcontent + command.size()+1 + filepath.size()+1 + sizeof(filesize), &is_download, sizeof(is_download));
 
     LPTF_Packet packet(COMMAND_PACKET, rawcontent, size);
 
@@ -98,23 +88,14 @@ LPTF_Packet build_file_transfer_request_packet(const string filepath, uint32_t f
 }
 
 
-LPTF_Packet build_file_part_packet(uint32_t file_id, uint32_t offset, void *data, uint16_t datalen) {
-    size_t size = sizeof(file_id)+sizeof(offset)+datalen;
-    uint8_t *rawcontent = (uint8_t*)malloc(size);
+LPTF_Packet build_file_download_request_packet(const string filepath) {
+    return build_command_packet(DOWNLOAD_FILE_COMMAND, filepath);
+}
 
-    if (!rawcontent)
-        throw runtime_error("Memory allocation failed !");
 
-    file_id = htonl(file_id);
-    offset = htonl(offset);
+LPTF_Packet build_file_part_packet(void *data, uint16_t datalen) {
+    LPTF_Packet packet(FILE_PART_PACKET, data, datalen);
 
-    memcpy(rawcontent, &file_id, sizeof(file_id));
-    memcpy(rawcontent + sizeof(file_id), &offset, sizeof(offset));
-    memcpy(rawcontent + sizeof(file_id) + sizeof(offset), data, datalen);
-
-    LPTF_Packet packet(FILE_PART_PACKET, rawcontent, size);
-
-    free(rawcontent);
     return packet;
 }
 
@@ -256,7 +237,7 @@ string get_error_content_from_error_packet(LPTF_Packet &packet) {
 }
 
 
-FILE_TRANSFER_REQ_PACKET_STRUCT get_data_from_file_transfer_request_packet(LPTF_Packet &packet) {
+FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Packet &packet) {
     if (packet.type() != COMMAND_PACKET || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
 
     const char *content = (const char *)packet.get_content();
@@ -288,55 +269,26 @@ FILE_TRANSFER_REQ_PACKET_STRUCT get_data_from_file_transfer_request_packet(LPTF_
 
         i++;
     }
-    
-    // size_t offset = string(content, packet.get_header().length - sizeof(uint32_t) - sizeof(bool)).size()+1;
-
-    // string filepath = string(content + offset, packet.get_header().length - offset - sizeof(uint32_t) - sizeof(bool));
-    
-    // Null term check
-    // if (filepath.at(packet.get_header().length - sizeof(uint32_t) - 1) != '\0')
-    //     filepath.append("\0");
 
     uint32_t filesize;
     memcpy(&filesize, content + i +1, sizeof(uint32_t));
 
-    cout << "filesize " << filesize << endl;
+    // cout << "filesize " << filesize << endl;
 
     filesize = ntohl(filesize);
-    cout << "filesize ntohl " << filesize << endl;
+    // cout << "filesize ntohl " << filesize << endl;
 
     return {filepath, filesize};
 }
 
 
-uint32_t get_file_id_from_file_transfer_reply_packet(LPTF_Packet &packet) {
-    uint32_t file_id;
-
-    if (packet.type() != REPLY_PACKET || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
-
-    memcpy(&file_id, (const char *)packet.get_content() + sizeof(uint8_t), sizeof(uint32_t));
-
-    cout << "ID: " << file_id << endl;
-
-    // file_id = ntohl(file_id);
-    // cout << "ID ntohl: " << file_id << endl;
-
-    return file_id;
+string get_file_from_file_download_request_packet(LPTF_Packet &packet) {
+    return get_arg_from_command_packet(packet);
 }
 
 
 FILE_PART_PACKET_STRUCT get_data_from_file_data_packet(LPTF_Packet &packet) {
     if (packet.type() != FILE_PART_PACKET || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
 
-    uint32_t file_id;
-    memcpy(&file_id, packet.get_content(), sizeof(uint32_t));
-    file_id = ntohl(file_id);
-
-    uint32_t offset;
-    memcpy(&offset, (const char*) packet.get_content() + sizeof(uint32_t), sizeof(uint32_t));
-    offset = ntohl(offset);
-
-    uint16_t data_offset = sizeof(uint32_t) + sizeof(uint32_t);
-
-    return {file_id, offset, (const char *)packet.get_content() + data_offset, static_cast<uint16_t>(packet.get_header().length - data_offset)};
+    return {(const char *)packet.get_content(), static_cast<uint16_t>(packet.get_header().length)};
 }
