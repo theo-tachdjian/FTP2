@@ -24,7 +24,7 @@ LPTF_Socket::LPTF_Socket(int domain, int type, int protocol) {
     
 LPTF_Socket::~LPTF_Socket() {
     if (sockfd != -1)
-        close(sockfd);
+        close();
 }
 
 LPTF_Socket::LPTF_Socket(const LPTF_Socket &src) {
@@ -116,4 +116,10 @@ int LPTF_Socket::bind(const sockaddr *addr, socklen_t len) {
 
 int LPTF_Socket::listen(int backlog) {
     return ::listen(sockfd, backlog);
+}
+
+int LPTF_Socket::close() {
+    int ret = ::close(sockfd);
+    sockfd = -1;
+    return ret;
 }

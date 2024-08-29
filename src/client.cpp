@@ -9,13 +9,13 @@
 
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
 #include "../include/LPTF_Net/LPTF_Utils.hpp"
-#include "../include/commands.hpp"
+#include "../include/client_actions.hpp"
 
-#include <experimental/filesystem>
+#include <filesystem>
 
 using namespace std;
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 
 void print_help() {
@@ -51,7 +51,28 @@ bool check_command(int argc, char const *argv[]) {
 }
 
 
+bool login(LPTF_Socket *clientSocket, string username) {
+    // send "login" packet
+    LPTF_Packet pckt(LOGIN_PACKET, (void *)username.c_str(), username.size()+1);
+    clientSocket->write(pckt);
+    // wait for server reply
+    pckt = clientSocket->read();
+
+    if (pckt.type() == REPLY_PACKET && get_refered_packet_type_from_reply_packet(pckt) == LOGIN_PACKET) {
+        cout << "Login successful." << endl;
+        return true;
+    } else if (pckt.type() == ERROR_PACKET) {
+        cout << "Unable to log in: " << get_error_content_from_error_packet(pckt) << endl;
+    } else {
+        cout << "Unexpected server packet ! Could not log in !";
+    }
+
+    return false;
+}
+
+
 int main(int argc, char const *argv[]) {
+    string username;
     string ip;
     int port;
 
@@ -66,32 +87,45 @@ int main(int argc, char const *argv[]) {
     }
 
     string serv_arg = argv[1];
-    size_t sep_index = serv_arg.find(':');
+    size_t user_sep_index = serv_arg.find('@');
 
-    if (sep_index == string::npos) {
+    if (user_sep_index == string::npos) {
         cout << "Server address is wrong !" << endl;
         print_help();
         return 2;
     }
 
-    ip = serv_arg.substr(0, sep_index);
-    port = atoi(serv_arg.substr(sep_index+1, serv_arg.size()).c_str());
+    size_t ip_sep_index = serv_arg.find(':', user_sep_index);
+
+    if (ip_sep_index == string::npos) {
+        cout << "Server address is wrong !" << endl;
+        print_help();
+        return 2;
+    }
+    
+    username = serv_arg.substr(0, user_sep_index);
+    ip = serv_arg.substr(user_sep_index+1, ip_sep_index-user_sep_index-1);
+    port = atoi(serv_arg.substr(ip_sep_index+1, serv_arg.size()).c_str());
+
+    // FIXME check for ip and port later
+    if (username.size() == 0) {
+        cout << "Username is wrong !" << endl;
+        print_help();
+        return 2;
+    }
 
     if (ip.size() == 0)
         ip = "127.0.0.1";
     if (port == 0)
         port = 12345;
 
-    cout << "IP: " << ip << ", Port: " << port <<endl;
+    cout << "Username: " << username << ", IP: " << ip << ", Port: " << port <<endl;
 
     // check if command + args are valid before connecting to the server
     if (!check_command(argc, argv)) {
+        print_help();
         return 2;
     }
-
-    // // char file[] = "Tests/hello.txt";
-    // // char outfile[] = "hello.txt";
-    // char file_to_dl[] = "hello.txt";
 
     try {
         LPTF_Socket clientSocket = LPTF_Socket();
@@ -104,6 +138,25 @@ int main(int argc, char const *argv[]) {
 
         clientSocket.connect(reinterpret_cast<struct sockaddr *>(&serverAddr), sizeof(serverAddr));
 
+        // if login failed
+        if (!login(&clientSocket, username)) {
+            clientSocket.close();
+            return 1;
+        }
+
+        // // login loop (TODO)
+        // while (true) {
+
+        //     string password;
+
+        //     cout << "Enter password for \"" << username << "\": ";
+        //     cin >> password;
+
+        //     // send login request
+        //     LPTF_Packet login_pckt(LOGIN_PACKET, );
+
+        // }
+
         if (strcmp(argv[2], "-upload") == 0) {
 
             string outfile = fs::path(argv[3]).filename();      // TODO replace when server has folders
@@ -111,7 +164,7 @@ int main(int argc, char const *argv[]) {
 
             cout << "Uploading File " << file << " as " << outfile << endl;
 
-            upload_file(&clientSocket, outfile, file);
+            return !upload_file(&clientSocket, outfile, file);
 
         } else if (strcmp(argv[2], "-download") == 0) {
 
@@ -119,7 +172,7 @@ int main(int argc, char const *argv[]) {
 
             cout << "Downloading File " << file << endl;
 
-            download_file(&clientSocket, file);
+            return !download_file(&clientSocket, file);
 
         }
 

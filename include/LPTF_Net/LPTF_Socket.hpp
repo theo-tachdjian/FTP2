@@ -46,6 +46,8 @@ public:
     int bind(const sockaddr *addr, socklen_t len);
 
     int listen(int backlog);
+
+    int close();
 };
 
 #endif

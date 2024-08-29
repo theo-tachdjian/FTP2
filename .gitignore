@@ -3,5 +3,7 @@ lpf
 lpf_server
 lpf.exe
 lpf_server.exe
+test
+test.exe
 Test/
 server_root/*

@@ -10,6 +10,7 @@
 #define COMMAND_PACKET 2
 #define BINARY_PACKET 3
 #define FILE_PART_PACKET 4
+#define LOGIN_PACKET 5
 
 #define ERROR_PACKET 0xFF   // a packet type should not be higher than this value
 

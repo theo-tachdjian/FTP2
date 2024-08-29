@@ -17,7 +17,8 @@
 
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
 #include "../include/LPTF_Net/LPTF_Utils.hpp"
-#include "../include/commands.hpp"
+#include "../include/server_actions.hpp"
+#include "../include/file_utils.hpp"
 
 using namespace std;
 
@@ -102,46 +103,60 @@ private:
     bool stop_ = false;
 };
 
-// Etape 1
-// void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_in clientAddr, socklen_t clientAddrLen) {
-//     cout << "Handling client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " (" << clientAddrLen << ")" << endl;
-
-//     try {
-//         // listen for "ping" message
-//         LPTF_Packet msg = serverSocket->recv(clientSockfd, 0);
-//         string content = get_message_from_message_packet(msg);
-
-//         cout << "Received: " << content << endl;
-
-//         LPTF_Packet resp;
-
-//         if (strcmp(content.c_str(), "ping") == 0) {
-//             cout << "Sending pong message." << endl;
-//             resp = build_message_packet("pong");
-//         } else {
-//             cout << "Sending pong? message." << endl;
-//             resp = build_message_packet("pong?");
-//         }
-
-//         ssize_t ret = serverSocket->send(clientSockfd, resp, 0);
-
-//         if (ret == -1) { cout << "Message not sent !" << endl; }
-
-//     } catch (const exception &ex) {
-//         cout << "Error when handling client " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " : " << ex.what() << endl;    
-//     }
-
-//     cout << "Closing client connection" << endl;
-//     close(clientSockfd);
-// }
 
 void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_in clientAddr, socklen_t clientAddrLen) {
     cout << "Handling client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " (" << clientAddrLen << ")" << endl;
 
     try {
-        // listen for commands
+
+        string username;
+
+        // wait for login
+
+        while (true) {
+            // listen for login packet
+            LPTF_Packet pckt = serverSocket->recv(clientSockfd, 0);
+
+            if (pckt.type() == LOGIN_PACKET) {
+                try {
+                    username = string((const char *)pckt.get_content(), pckt.get_header().length);
+
+                    // create folders
+                    check_user_root_folder(username);
+
+                    pckt = build_reply_packet(LOGIN_PACKET, (void*)"OK", 2);
+                    serverSocket->send(clientSockfd, pckt, 0);
+
+                    break;
+                } catch (const exception &ex) {
+                    string err_msg;
+                    err_msg.append("Error when logging in client: ");
+                    err_msg.append(ex.what());
+
+                    LPTF_Packet error_pckt = build_error_packet(pckt.type(), ERR_CMD_UNKNOWN, err_msg);
+                    serverSocket->send(clientSockfd, error_pckt, 0);
+                    
+                    cout << err_msg << endl << "Closing client connection" << endl;
+                    close(clientSockfd);
+                    return;
+                }
+            } else {
+                string err_msg = "You must log in to perform this action.";
+                LPTF_Packet error_pckt = build_error_packet(pckt.type(), ERR_CMD_UNKNOWN, err_msg);
+                serverSocket->send(clientSockfd, error_pckt, 0);
+
+                cout << "Closing client connection" << endl;
+                close(clientSockfd);
+                return;
+            }
+        }
+
+        cout << "Client logged in as \"" << username << "\"" << endl;
+
+        // listen for command
 
         LPTF_Packet req = serverSocket->recv(clientSockfd, 0);
+
         if (req.type() == COMMAND_PACKET) {
             string cmd = get_command_from_command_packet(req);
 
@@ -153,17 +168,24 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
                 cout << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize << endl;
                 // req.print_specs();
 
-                receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize);
+                receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize, username);
 
             } else if (strcmp(cmd.c_str(), DOWNLOAD_FILE_COMMAND) == 0) {
                 string filepath = get_file_from_file_download_request_packet(req);
 
                 cout << "File to send: " << filepath << endl;
 
-                send_file(serverSocket, clientSockfd, filepath);
+                send_file(serverSocket, clientSockfd, filepath, username);
+
             } else {
-                
+                string err_msg = "Not Implemented";
+                LPTF_Packet err_pckt = build_error_packet(COMMAND_PACKET, ERR_CMD_UNKNOWN, err_msg);
+                serverSocket->send(clientSockfd, err_pckt, 0);
             }
+        } else {
+            string err_msg = "Not Implemented";
+            LPTF_Packet err_pckt = build_error_packet(req.type(), ERR_CMD_UNKNOWN, err_msg);
+            serverSocket->send(clientSockfd, err_pckt, 0);
         }
 
     } catch (const exception &ex) {
@@ -191,6 +213,8 @@ int main() {
 
         serverSocket.bind(reinterpret_cast<struct sockaddr *>(&serverAddr), sizeof(serverAddr));
         serverSocket.listen(max_clients);   // limit number of clients
+
+        cout << "Server running: " << inet_ntoa(serverAddr.sin_addr) << ":" << ntohs(serverAddr.sin_port) << endl;
 
         while (true) {
             cout << "Waiting for new client..." << endl;
