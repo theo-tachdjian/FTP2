@@ -28,17 +28,34 @@ void print_help() {
 
 
 bool check_command(int argc, char const *argv[]) {
-    if (argc < 4)
-        return false;
-
     if (strcmp(argv[2], "-upload") == 0) {
+        if (argc < 4)
+            return false;
         if (argc != 4) {
             cout << "Too much arguments !" << endl;
         } else {
             return true;
         }
     } else if (strcmp(argv[2], "-download") == 0) {
+        if (argc < 4)
+            return false;
         if (argc != 4) {
+            cout << "Too much arguments !" << endl;
+        } else {
+            return true;
+        }
+    } else if (strcmp(argv[2], "-delete") == 0) {
+        if (argc < 4)
+            return false;
+        if (argc != 4) {
+            cout << "Too much arguments !" << endl;
+        } else {
+            return true;
+        }
+    } else if (strcmp(argv[2], "-list") == 0) {
+        if (argc < 3)
+            return false;
+        if (argc > 4) {
             cout << "Too much arguments !" << endl;
         } else {
             return true;
@@ -76,7 +93,7 @@ int main(int argc, char const *argv[]) {
     string ip;
     int port;
 
-    if (argc < 4) {
+    if (argc < 3) {
         cout << "Too few arguments !" << endl;
         print_help();
         return 2;
@@ -144,19 +161,6 @@ int main(int argc, char const *argv[]) {
             return 1;
         }
 
-        // // login loop (TODO)
-        // while (true) {
-
-        //     string password;
-
-        //     cout << "Enter password for \"" << username << "\": ";
-        //     cin >> password;
-
-        //     // send login request
-        //     LPTF_Packet login_pckt(LOGIN_PACKET, );
-
-        // }
-
         if (strcmp(argv[2], "-upload") == 0) {
 
             string outfile = fs::path(argv[3]).filename();      // TODO replace when server has folders
@@ -173,6 +177,26 @@ int main(int argc, char const *argv[]) {
             cout << "Downloading File " << file << endl;
 
             return !download_file(&clientSocket, file);
+
+        } else if (strcmp(argv[2], "-delete") == 0) {
+
+            string file = argv[3];
+
+            cout << "Deleting File " << file << endl;
+
+            return !delete_file(&clientSocket, file);
+
+        } else if (strcmp(argv[2], "-list") == 0) {
+            
+            string path = "";
+
+            if (argc == 4) {
+                path = argv[3];
+            }
+
+            cout << "Listing Directory content" << endl;
+
+            return !list_directory(&clientSocket, path);
 
         }
 

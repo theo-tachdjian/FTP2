@@ -12,6 +12,9 @@
 #include "../../include/LPTF_Net/LPTF_Packet.hpp"
 
 
+using namespace std;
+
+
 LPTF_Socket::LPTF_Socket() {
     sockfd = -1;
     init(AF_INET, SOCK_STREAM, 0);
@@ -39,18 +42,18 @@ LPTF_Socket &LPTF_Socket::operator=(const LPTF_Socket &src) {
 
 void LPTF_Socket::init(int domain, int type, int protocol) {
     if (sockfd > 0) {
-        throw std::runtime_error("Socket already created");
+        throw runtime_error("Socket already created");
     }
 
     sockfd = socket(domain, type, protocol);
     if (sockfd == -1) {
-        throw std::runtime_error("Failed to create socket");
+        throw runtime_error("Failed to create socket");
     }
 }
 
 void LPTF_Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     if (::connect(sockfd, addr, addrlen) == -1) {
-        throw std::runtime_error("Failed to connect to server");
+        throw runtime_error("Failed to connect to server");
     }
 }
 
@@ -73,10 +76,14 @@ LPTF_Packet LPTF_Socket::recv(int sockfdfrom, int flags) {
     if (retval < 0 /*aka -1*/ || ((size_t) retval) /*-Wsign-compare*/ < sizeof(PACKET_HEADER)) {
         char msg[64];
         sprintf(msg, "Received too few bytes (expected %ld, got %ld).", sizeof(PACKET_HEADER), retval);
-        throw std::runtime_error(msg);
+        throw runtime_error(msg);
     }
 
     LPTF_Packet packet(buffer, sizeof(PACKET_HEADER)+UINT16_MAX);
+
+    cout << "Packet Received:" << endl;
+    packet.print_specs();
+
     return packet;
 }
 
@@ -87,10 +94,14 @@ LPTF_Packet LPTF_Socket::read() {
     if (retval < 0 /*aka -1*/ || ((size_t) retval) /*-Wsign-compare*/ < sizeof(PACKET_HEADER)) {
         char msg[64];
         sprintf(msg, "Received too few bytes (expected %ld, got %ld).", sizeof(PACKET_HEADER), retval);
-        throw std::runtime_error(msg);
+        throw runtime_error(msg);
     }
 
     LPTF_Packet packet(buffer, sizeof(PACKET_HEADER)+UINT16_MAX);
+
+    cout << "Packet Read:" << endl;
+    packet.print_specs();
+
     return packet;
 }
 

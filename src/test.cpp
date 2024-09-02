@@ -4,6 +4,13 @@
 
 #include <filesystem>
 
+#include <vector>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
+
 using namespace std;
 
 namespace fs = std::filesystem;
@@ -41,6 +48,28 @@ int main()
 
     filepath.append("abc");
     cout << "filepath.append(\"abc\"): " << filepath << endl;
+
+    fs::path erwan_path = get_user_root("Erwan");
+    cout << erwan_path << endl;
+    erwan_path /= "";
+    cout << erwan_path << endl;
+    // erwan_path /= "MyFolder";
+    // cout << erwan_path << endl;
+
+    const char *entry_prefix[] = {
+        "<FILE>\t",
+        "<DIR>\t"
+    };
+
+    cout << "iterator on folder Erwan:" << endl;
+
+    for (auto const& dir_entry : fs::directory_iterator{erwan_path}) {
+        if (fs::is_directory(dir_entry)) {
+            cout << entry_prefix[fs::is_directory(dir_entry)] << dir_entry.path().stem().string() << ", " << dir_entry.path() << endl;
+        } else {
+            cout << entry_prefix[fs::is_directory(dir_entry)] << dir_entry.path().filename().string() << ", " << dir_entry.path() << endl;
+        }
+    }
 
     return 0;
 }

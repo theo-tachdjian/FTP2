@@ -27,8 +27,7 @@ LPTF_Packet build_reply_packet(uint8_t repfrom, void *repcontent, uint16_t conte
 
 
 LPTF_Packet build_message_packet(const string &message) {
-    LPTF_Packet packet(MESSAGE_PACKET, (void*)message.c_str(),
-                       message.size()+1);     // include null term
+    LPTF_Packet packet(MESSAGE_PACKET, (void*)message.c_str(), message.size());
     return packet;
 }
 
@@ -43,7 +42,7 @@ LPTF_Packet build_command_packet(const string &cmd, const string &arg) {
     memcpy(rawcontent + cmd.size() + 1, arg.c_str(), arg.size()+1);
 
     LPTF_Packet packet(COMMAND_PACKET, rawcontent,
-                       cmd.size() + arg.size() + 2);
+                       cmd.size() +1 + arg.size() + 1);
     free(rawcontent);
     return packet;
 }
@@ -93,6 +92,15 @@ LPTF_Packet build_file_download_request_packet(const string filepath) {
 }
 
 
+LPTF_Packet build_file_delete_request_packet(const string filepath) {
+    return build_command_packet(DELETE_FILE_COMMAND, filepath);
+}
+
+LPTF_Packet build_list_directory_request_packet(const string pathname) {
+    return build_command_packet(LIST_FILES_COMMAND, pathname);
+}
+
+
 LPTF_Packet build_file_part_packet(void *data, uint16_t datalen) {
     LPTF_Packet packet(FILE_PART_PACKET, data, datalen);
 
@@ -107,10 +115,6 @@ string get_message_from_message_packet(LPTF_Packet &packet) {
 
     message = string((const char *)packet.get_content(), packet.get_header().length);
 
-    // Null term check
-    if (message.at(packet.get_header().length-1) != '\0')
-        message.append("\0");
-
     return message;
 }
 
@@ -124,12 +128,9 @@ string get_command_from_command_packet(LPTF_Packet &packet) {
 
     int i = 0;
     while (i < packet.get_header().length) {
-        if (content[i] == '\0') {
+        if (content[i] == '\0' || i == packet.get_header().length-1) {
             cmd = string(content, i+1);
             break;
-        } else if (i == packet.get_header().length-1) {
-            cmd = string(content, i+1);
-            cmd.append("\0");
         }
 
         i++;
@@ -159,12 +160,9 @@ string get_arg_from_command_packet(LPTF_Packet &packet) {
     }
 
     while (i < packet.get_header().length) {
-        if (content[i] == '\0') {
+        if (content[i] == '\0' || i == packet.get_header().length-1) {
             arg = string(content+arg_offset, i+1 - arg_offset);
             break;
-        } else if (i == packet.get_header().length-1) {
-            arg = string(content+arg_offset, i+1 - arg_offset);
-            arg.append("\0");
         }
 
         i++;
@@ -191,10 +189,6 @@ string get_reply_content_from_reply_packet(LPTF_Packet &packet) {
     if (packet.type() != REPLY_PACKET || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
 
     message = string((const char *)packet.get_content()+1, packet.get_header().length-1);
-
-    // Null term check
-    if (message.at(packet.get_header().length-2) != '\0')
-        message.append("\0");
 
     return message;
 }
@@ -259,12 +253,9 @@ FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Pack
     string filepath;
 
     while (i < packet.get_header().length) {
-        if (content[i] == '\0') {
+        if (content[i] == '\0' || i == packet.get_header().length-1) {
             filepath = string(content+offset, i+1 - offset);
             break;
-        } else if (i == packet.get_header().length-1) {
-            filepath = string(content+offset, i+1 - offset);
-            filepath.append("\0");
         }
 
         i++;
@@ -283,6 +274,14 @@ FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Pack
 
 
 string get_file_from_file_download_request_packet(LPTF_Packet &packet) {
+    return get_arg_from_command_packet(packet);
+}
+
+string get_file_from_file_delete_request_packet(LPTF_Packet &packet) {
+    return get_arg_from_command_packet(packet);
+}
+
+string get_path_from_list_directory_request_packet(LPTF_Packet &packet) {
     return get_arg_from_command_packet(packet);
 }
 

@@ -55,7 +55,7 @@ class LPTF_Packet {
 
         LPTF_Packet(const LPTF_Packet &src);
 
-        ~LPTF_Packet();
+        virtual ~LPTF_Packet();
 
         LPTF_Packet &operator=(const LPTF_Packet &src);
         

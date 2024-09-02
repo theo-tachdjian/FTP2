@@ -15,6 +15,8 @@ LPTF_Packet build_error_packet(uint8_t errfrom, uint8_t err_code, string &errmsg
 
 LPTF_Packet build_file_upload_request_packet(const string filepath, uint32_t filesize);
 LPTF_Packet build_file_download_request_packet(const string filepath);
+LPTF_Packet build_file_delete_request_packet(const string filepath);
+LPTF_Packet build_list_directory_request_packet(const string pathname);
 
 LPTF_Packet build_file_part_packet(void *data, uint16_t datalen);
 
@@ -29,6 +31,8 @@ string get_error_content_from_error_packet(LPTF_Packet &packet);
 
 FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Packet &packet);
 string get_file_from_file_download_request_packet(LPTF_Packet &packet);
+string get_file_from_file_delete_request_packet(LPTF_Packet &packet);
+string get_path_from_list_directory_request_packet(LPTF_Packet &packet);
 
 FILE_PART_PACKET_STRUCT get_data_from_file_data_packet(LPTF_Packet &packet);
 

@@ -169,3 +169,77 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
         return true;
     }
 }
+
+
+bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, string username) {
+    fs::path filepath = get_user_root(username);
+    filepath /= filename;
+
+    cout << "Filepath: " << filepath << endl;
+
+    if (!fs::is_regular_file(filepath)) {
+        string msg("The file doesn't exist.");
+        cout << msg << endl;
+        LPTF_Packet error_packet = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, msg);
+        serverSocket->send(clientSockfd, error_packet, 0);
+        return false;
+    }
+
+    // delete the file
+
+    if (fs::remove(filepath)) {
+        uint8_t status = 1;
+        LPTF_Packet reply = build_reply_packet(COMMAND_PACKET, (void*)&status, sizeof(status));
+        serverSocket->send(clientSockfd, reply, 0);
+
+        return true;
+    } else {
+        string err_msg = "The file could not be removed.";
+        cout << "Error when removing file " << filepath << ": " << err_msg << endl;
+        LPTF_Packet err_pckt = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, err_msg);
+        serverSocket->send(clientSockfd, err_pckt, 0);
+
+        return false;
+    }
+}
+
+
+bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, string username) {
+    fs::path folderpath = get_user_root(username);
+    folderpath /= path;
+
+    cout << "Folderpath: " << folderpath << endl;
+
+    if (!fs::is_directory(folderpath) || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
+        string msg("The folder doesn't exist.");
+        cout << msg << endl;
+        LPTF_Packet error_packet = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, msg);
+        serverSocket->send(clientSockfd, error_packet, 0);
+        return false;
+    }
+
+    const char *entry_prefix[] = {
+        "<FILE>\t",
+        "<DIR>\t"
+    };
+
+    // list directory content
+
+    string result = "";
+    for (fs::directory_entry const& dir_entry : fs::directory_iterator{folderpath}) {
+        bool is_dir = fs::is_directory(dir_entry);
+        result.append(entry_prefix[is_dir]);
+        if (is_dir)
+            result.append(dir_entry.path().stem().string());
+        else
+            result.append(dir_entry.path().filename().string());
+        result.append("\n");
+    }
+
+    if (result.size() == 0) result.append("(empty)");
+
+    LPTF_Packet reply = build_reply_packet(COMMAND_PACKET, (void*)result.c_str(), result.size());
+    serverSocket->send(clientSockfd, reply, 0);
+
+    return true;
+}

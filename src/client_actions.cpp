@@ -180,3 +180,50 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
     return true;
 
 }
+
+
+bool delete_file(LPTF_Socket *clientSocket, string filename) {
+
+    cout << "Removing file " << filename << endl;
+
+    LPTF_Packet pckt = build_file_delete_request_packet(filename);
+    clientSocket->write(pckt);
+
+    // check server reply
+    LPTF_Packet reply = clientSocket->read();
+    
+    if (reply.type() == REPLY_PACKET && get_refered_packet_type_from_reply_packet(reply) == COMMAND_PACKET) {
+        cout << "File successfully deleted." << endl;
+        return true;
+    } else if (reply.type() == ERROR_PACKET) {
+        cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
+        return false;
+    } else {
+        cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
+        return false;
+    }
+}
+
+
+bool list_directory(LPTF_Socket *clientSocket, string pathname) {
+    
+    cout << "Listing directory " << pathname << endl;
+
+    LPTF_Packet pckt = build_list_directory_request_packet(pathname);
+    clientSocket->write(pckt);
+
+    // check server reply
+    LPTF_Packet reply = clientSocket->read();
+    
+    if (reply.type() == REPLY_PACKET && get_refered_packet_type_from_reply_packet(reply) == COMMAND_PACKET) {
+        cout << get_reply_content_from_reply_packet(reply) << endl;
+        return true;
+    } else if (reply.type() == ERROR_PACKET) {
+        cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
+        return false;
+    } else {
+        cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
+        return false;
+    }
+
+}

@@ -86,7 +86,11 @@ LPTF_Packet::LPTF_Packet(const LPTF_Packet &src) {
 
 // Destructor
 LPTF_Packet::~LPTF_Packet() {
-    
+    if (content) {
+        free(content);
+        header.length = 0;
+        content = nullptr;
+    }
 }
 
 // Equal Operator

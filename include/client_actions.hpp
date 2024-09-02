@@ -10,4 +10,8 @@ bool download_file(LPTF_Socket *clientSocket, string filename);
 
 bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile);
 
+bool delete_file(LPTF_Socket *clientSocket, string filename);
+
+bool list_directory(LPTF_Socket *clientSocket, string pathname);
+
 #endif
