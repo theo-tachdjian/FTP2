@@ -18,61 +18,75 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    fs::path uroot = get_user_root("TESTUSER");
+    fs::path folder = get_user_root("TESTUSER");
+    fs::path folder2 = get_user_root("TESTUSER");
 
-    cout << "fs::exists(uroot): " << fs::exists(uroot) << endl;
-    cout << "fs::is_directory(uroot): " << fs::is_directory(uroot) << endl;
+    folder2 /= "a";
 
-    fs::path filepath = uroot;
-    filepath /= "test-out.bin";
+    cout << "Relative paths: " << fs::relative(folder2, folder) << endl;
+    cout << "Is " << folder2 <<" in " << folder << ": " << is_path_in_folder(folder2, folder) << endl;
 
-    cout << "filepath: " << filepath<<endl;
+    folder2 = folder;
+    folder2 /= "file.txt";
 
-    ofstream outfile;
-    outfile.open(filepath, ios::binary | ios::out);
+    cout << "Relative paths: " << fs::relative(folder2, folder) << endl;
+    cout << "Is " << folder2 <<" in " << folder << ": " << is_path_in_folder(folder2, folder) << endl;
 
-    cout << "outfile open: " << outfile.is_open() << endl;
-    cout << "outfile tellp: " << outfile.tellp() << endl;
+    // fs::path uroot = get_user_root("TESTUSER");
 
-    outfile.write("abc!", 4);
+    // cout << "fs::exists(uroot): " << fs::exists(uroot) << endl;
+    // cout << "fs::is_directory(uroot): " << fs::is_directory(uroot) << endl;
 
-    outfile.close();
+    // fs::path filepath = uroot;
+    // filepath /= "test-out.bin";
 
-    string path = "server_root/Erwan/hello.txt";
-    cout << path << " size: " << get_file_size(path) << endl;
+    // cout << "filepath: " << filepath<<endl;
 
-    fs::path fspath = ("server_root/Erwan/hello.txt");
-    cout << path << " size: " << get_file_size(fspath) << endl;
+    // ofstream outfile;
+    // outfile.open(filepath, ios::binary | ios::out);
 
-    cout << "filepath.native(): "<< filepath.native() << endl;
+    // cout << "outfile open: " << outfile.is_open() << endl;
+    // cout << "outfile tellp: " << outfile.tellp() << endl;
 
-    filepath.append("abc");
-    cout << "filepath.append(\"abc\"): " << filepath << endl;
+    // outfile.write("abc!", 4);
 
-    fs::path erwan_path = get_user_root("Erwan");
-    cout << erwan_path << endl;
-    erwan_path /= "";
-    cout << erwan_path << endl;
-    // erwan_path /= "MyFolder";
+    // outfile.close();
+
+    // string path = "server_root/Erwan/hello.txt";
+    // cout << path << " size: " << get_file_size(path) << endl;
+
+    // fs::path fspath = ("server_root/Erwan/hello.txt");
+    // cout << path << " size: " << get_file_size(fspath) << endl;
+
+    // cout << "filepath.native(): "<< filepath.native() << endl;
+
+    // filepath.append("abc");
+    // cout << "filepath.append(\"abc\"): " << filepath << endl;
+
+    // fs::path erwan_path = get_user_root("Erwan");
     // cout << erwan_path << endl;
+    // erwan_path /= "";
+    // cout << erwan_path << endl;
+    // // erwan_path /= "MyFolder";
+    // // cout << erwan_path << endl;
 
-    const char *entry_prefix[] = {
-        "<FILE>\t",
-        "<DIR>\t"
-    };
+    // const char *entry_prefix[] = {
+    //     "<FILE>\t",
+    //     "<DIR>\t"
+    // };
 
-    cout << "iterator on folder Erwan:" << endl;
+    // cout << "iterator on folder Erwan:" << endl;
 
-    for (auto const& dir_entry : fs::directory_iterator{erwan_path}) {
-        if (fs::is_directory(dir_entry)) {
-            cout << entry_prefix[fs::is_directory(dir_entry)] << dir_entry.path().stem().string() << ", " << dir_entry.path() << endl;
-        } else {
-            cout << entry_prefix[fs::is_directory(dir_entry)] << dir_entry.path().filename().string() << ", " << dir_entry.path() << endl;
-        }
-    }
+    // for (auto const& dir_entry : fs::directory_iterator{erwan_path}) {
+    //     if (fs::is_directory(dir_entry)) {
+    //         cout << entry_prefix[fs::is_directory(dir_entry)] << dir_entry.path().stem().string() << ", " << dir_entry.path() << endl;
+    //     } else {
+    //         cout << entry_prefix[fs::is_directory(dir_entry)] << dir_entry.path().filename().string() << ", " << dir_entry.path() << endl;
+    //     }
+    // }
 
-    cout << "Directory contents from file_utils:" << endl;
-    cout << list_directory_content(erwan_path) << endl;
+    // cout << "Directory contents from file_utils:" << endl;
+    // cout << list_directory_content(erwan_path) << endl;
 
     return 0;
 }

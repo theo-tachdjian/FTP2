@@ -5,5 +5,5 @@ lpf.exe
 lpf_server.exe
 test
 test.exe
-Test/
+Tests/
 server_root/*

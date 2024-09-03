@@ -13,3 +13,7 @@ bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, s
 bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, string username);
 
 bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirname, string path, string username);
+
+bool remove_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder, string username);
+
+bool rename_directory(LPTF_Socket *serverSocket, int clientSockfd, string newname, string path, string username);

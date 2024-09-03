@@ -27,6 +27,8 @@ void print_help() {
     cout << "\t-delete <file>" << endl;
     cout << "\t-list <path>" << endl;
     cout << "\t-create <foldername> <path>" << endl;
+    cout << "\t-rm <folder>" << endl;
+    cout << "\t-rename <name> <folder>" << endl;
 }
 
 
@@ -36,6 +38,7 @@ bool check_command(int argc, char const *argv[]) {
             return false;
         if (argc > 5) {
             cout << "Too much arguments !" << endl;
+            return false;
         } else {
             return true;
         }
@@ -44,6 +47,7 @@ bool check_command(int argc, char const *argv[]) {
             return false;
         if (argc != 4) {
             cout << "Too much arguments !" << endl;
+            return false;
         } else {
             return true;
         }
@@ -52,6 +56,7 @@ bool check_command(int argc, char const *argv[]) {
             return false;
         if (argc != 4) {
             cout << "Too much arguments !" << endl;
+            return false;
         } else {
             return true;
         }
@@ -60,6 +65,7 @@ bool check_command(int argc, char const *argv[]) {
             return false;
         if (argc > 4) {
             cout << "Too much arguments !" << endl;
+            return false;
         } else {
             return true;
         }
@@ -68,6 +74,25 @@ bool check_command(int argc, char const *argv[]) {
             return false;
         if (argc > 5) {
             cout << "Too much arguments !" << endl;
+            return false;
+        } else {
+            return true;
+        }
+    } else if (strcmp(argv[2], "-rm") == 0) {
+        if (argc < 4)
+            return false;
+        if (argc != 4) {
+            cout << "Too much arguments !" << endl;
+            return false;
+        } else {
+            return true;
+        }
+    } else if (strcmp(argv[2], "-rename") == 0) {
+        if (argc <= 4)
+            return false;
+        if (argc > 5) {
+            cout << "Too much arguments !" << endl;
+            return false;
         } else {
             return true;
         }
@@ -205,9 +230,8 @@ int main(int argc, char const *argv[]) {
             
             string path = "";
 
-            if (argc == 4) {
+            if (argc == 4)
                 path = argv[3];
-            }
 
             return !list_directory(&clientSocket, path);
 
@@ -218,11 +242,21 @@ int main(int argc, char const *argv[]) {
 
             dirname = argv[3];
 
-            if (argc == 5) {
+            if (argc == 5)
                 path = argv[4];
-            }
 
             return !create_directory(&clientSocket, dirname, path);
+        } else if (strcmp(argv[2], "-rm") == 0) {
+
+            string folder = argv[3];
+
+            return !remove_directory(&clientSocket, folder);
+        } else if (strcmp(argv[2], "-rename") == 0) {
+
+            string newname = argv[3];
+            string path = argv[4];
+
+            return !rename_directory(&clientSocket, newname, path);
         }
 
     } catch (const exception &ex) {

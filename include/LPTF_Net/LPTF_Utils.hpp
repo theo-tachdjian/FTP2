@@ -20,6 +20,8 @@ LPTF_Packet build_file_download_request_packet(const string filepath);
 LPTF_Packet build_file_delete_request_packet(const string filepath);
 LPTF_Packet build_list_directory_request_packet(const string pathname);
 LPTF_Packet build_create_directory_request_packet(const string dirname, const string path);
+LPTF_Packet build_remove_directory_request_packet(string folder);
+LPTF_Packet build_rename_directory_request_packet(string newname, string path);
 
 LPTF_Packet build_file_part_packet(void *data, uint16_t datalen);
 
@@ -36,5 +38,7 @@ string get_file_from_file_download_request_packet(LPTF_Packet &packet);
 string get_file_from_file_delete_request_packet(LPTF_Packet &packet);
 string get_path_from_list_directory_request_packet(LPTF_Packet &packet);
 CREATE_DIR_REQ_PACKET_STRUCT get_data_from_create_directory_request_packet(LPTF_Packet &packet);
+string get_path_from_remove_directory_request_packet(LPTF_Packet &packet);
+RENAME_DIR_REQ_PACKET_STRUCT get_data_from_rename_directory_request_packet(LPTF_Packet &packet);
 
 FILE_PART_PACKET_STRUCT get_data_from_file_data_packet(LPTF_Packet &packet);

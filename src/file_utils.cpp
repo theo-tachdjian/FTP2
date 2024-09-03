@@ -80,3 +80,10 @@ fs::path get_user_root(string username) {
     uroot /= username;
     return uroot;
 }
+
+
+bool is_path_in_folder(fs::path contained, fs::path container) {
+    // compare the relative path for contained and container
+    fs::path relative_path = std::filesystem::relative(contained, container);
+    return !relative_path.empty() && relative_path.native()[0] != '.';
+}

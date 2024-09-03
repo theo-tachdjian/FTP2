@@ -14,6 +14,11 @@ typedef struct {
 } CREATE_DIR_REQ_PACKET_STRUCT;
 
 typedef struct {
+    string newname;
+    string path;
+} RENAME_DIR_REQ_PACKET_STRUCT;
+
+typedef struct {
     const void *data;
     uint16_t len;
 } FILE_PART_PACKET_STRUCT;

@@ -15,3 +15,5 @@ void check_user_root_folder(string username);
 
 fs::path get_server_root();
 fs::path get_user_root(string username);
+
+bool is_path_in_folder(fs::path contained, fs::path container);

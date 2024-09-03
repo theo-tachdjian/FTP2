@@ -22,12 +22,13 @@ void send_error_message(LPTF_Socket *serverSocket, int clientSockfd, uint8_t err
 
 bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, string username) {
 
-    fs::path filepath = get_user_root(username);
+    fs::path user_root = get_user_root(username);
+    fs::path filepath = user_root;
     filepath /= filename;
 
     cout << "Filepath: " << filepath << endl;
 
-    if (!fs::is_regular_file(filepath)) {
+    if (!is_path_in_folder(filepath, user_root) || !fs::is_regular_file(filepath)) {
         send_error_message(serverSocket, clientSockfd, DOWNLOAD_FILE_COMMAND, "The file doesn't exist.");
         return false;
     }
@@ -94,12 +95,13 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
 
 bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, uint32_t filesize, string username) {
 
-    fs::path filepath(get_user_root(username));
+    fs::path user_root = get_user_root(username);
+    fs::path filepath = user_root;
     filepath /= filename;
 
     cout << "Filepath: " << filepath << endl;
 
-    if (!fs::is_directory(fs::path(filepath).remove_filename())) {
+    if (!is_path_in_folder(filepath, user_root) || !fs::is_directory(fs::path(filepath).remove_filename())) {
         send_error_message(serverSocket, clientSockfd, UPLOAD_FILE_COMMAND, "Target directory doesn't exist !");
         return false;
     }
@@ -173,12 +175,13 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
 
 
 bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, string username) {
-    fs::path filepath = get_user_root(username);
+    fs::path user_root = get_user_root(username);
+    fs::path filepath = user_root;
     filepath /= filename;
 
     cout << "Filepath: " << filepath << endl;
 
-    if (!fs::is_regular_file(filepath)) {
+    if (!is_path_in_folder(filepath, user_root) || !fs::is_regular_file(filepath)) {
         send_error_message(serverSocket, clientSockfd, DELETE_FILE_COMMAND, "The file doesn't exist.");
         return false;
     }
@@ -199,13 +202,15 @@ bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, s
 
 
 bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, string username) {
-    fs::path folderpath = get_user_root(username);
+    fs::path user_root = get_user_root(username);
+    fs::path folderpath = user_root;
     if (!path.empty())
         folderpath /= path;
 
     cout << "Folderpath: " << folderpath << endl;
 
-    if (!fs::is_directory(folderpath) || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
+    if (!is_path_in_folder(folderpath, user_root) || !fs::is_directory(folderpath)
+        || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
         send_error_message(serverSocket, clientSockfd, LIST_FILES_COMMAND, "The folder doesn't exist.");
         return false;
     }
@@ -224,7 +229,8 @@ bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, st
 
 
 bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirname, string path, string username) {
-    fs::path folderpath = get_user_root(username);
+    fs::path user_root = get_user_root(username);
+    fs::path folderpath = user_root;
     if (!path.empty())
         folderpath /= path;
     
@@ -233,7 +239,8 @@ bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirnam
         return false;
     }
 
-    if (dirname.empty() || (dirname.at(0) == '/' || dirname.at(0) == '\\')) {
+    if (dirname.empty() || !is_path_in_folder(folderpath / dirname, user_root)
+        || (dirname.at(0) == '/' || dirname.at(0) == '\\')) {
         send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Invalid directory name.");
         return false;
     }
@@ -254,5 +261,76 @@ bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirnam
         serverSocket->send(clientSockfd, reply, 0);
 
         return true;
+    }
+}
+
+
+bool remove_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder, string username) {
+    fs::path user_root = get_user_root(username);
+    fs::path folderpath = user_root / folder;
+
+    // check if not user root folder
+    if (fs::equivalent(user_root, folderpath) || !is_path_in_folder(folderpath, user_root)
+        || (folder.size() > 0 && (folder.at(0) == '/' || folder.at(0) == '\\'))) {
+        send_error_message(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND, "Invalid folder.");
+        return false;
+    }
+
+    if (!fs::is_directory(folderpath)) {
+        send_error_message(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND, "The directory doesn't exist.");
+        return false;
+    }
+
+    // remove dir
+
+    if (fs::remove_all(folderpath) == 0 /* if nothing removed */) {
+        send_error_message(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND, "The directory could not be removed !");
+        return false;
+    } else {
+        bool status = 1;
+        LPTF_Packet reply = build_reply_packet(DELETE_FOLDER_COMMAND, &status, sizeof(status));
+        serverSocket->send(clientSockfd, reply, 0);
+
+        return true;
+    }
+}
+
+
+bool rename_directory(LPTF_Socket *serverSocket, int clientSockfd, string newname, string path, string username) {
+    fs::path user_root = get_user_root(username);
+    fs::path folderpath = user_root;
+    if (!path.empty())
+        folderpath /= path;
+    
+    if (fs::equivalent(user_root, folderpath) || !fs::is_directory(folderpath)
+        || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
+        send_error_message(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND, "The folder doesn't exist.");
+        return false;
+    }
+
+    fs::path newfolderpath = folderpath.parent_path() / newname;
+
+    if (newname.empty() || !is_path_in_folder(newfolderpath, user_root)
+        || (newname.at(0) == '/' || newname.at(0) == '\\' || newname.compare("..") == 0)) {
+        send_error_message(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND, "Invalid directory name.");
+        return false;
+    }
+
+    if (fs::is_directory(newfolderpath)) {
+        send_error_message(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND, "A directory with the same name already exists.");
+        return false;
+    }
+
+    // rename directory
+
+    try {
+        fs::rename(folderpath, newfolderpath);
+        bool status = 1;
+        LPTF_Packet reply = build_reply_packet(RENAME_FOLDER_COMMAND, &status, sizeof(status));
+        serverSocket->send(clientSockfd, reply, 0);
+        return true;
+    } catch(const fs::filesystem_error &ex) {
+        send_error_message(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND, ex.what());
+        return false;
     }
 }

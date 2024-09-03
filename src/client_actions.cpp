@@ -33,7 +33,7 @@ bool wait_for_server_reply(LPTF_Socket *clientSocket) {
 
 bool download_file(LPTF_Socket *clientSocket, string filename) {
 
-    cout << "Downloading file " << filename << endl;
+    cout << "Downloading file \"" << filename << "\"" << endl;
 
     LPTF_Packet pckt = build_file_download_request_packet(filename);
     clientSocket->write(pckt);
@@ -207,7 +207,7 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
 
 bool delete_file(LPTF_Socket *clientSocket, string filename) {
 
-    cout << "Removing file " << filename << endl;
+    cout << "Removing file \"" << filename << "\"" << endl;
 
     LPTF_Packet pckt = build_file_delete_request_packet(filename);
     clientSocket->write(pckt);
@@ -219,7 +219,7 @@ bool delete_file(LPTF_Socket *clientSocket, string filename) {
 
 bool list_directory(LPTF_Socket *clientSocket, string pathname) {
     
-    cout << "Listing directory " << pathname << endl;
+    cout << "Listing directory \"" << pathname << "\"" << endl;
 
     LPTF_Packet pckt = build_list_directory_request_packet(pathname);
     clientSocket->write(pckt);
@@ -231,10 +231,33 @@ bool list_directory(LPTF_Socket *clientSocket, string pathname) {
 
 bool create_directory(LPTF_Socket *clientSocket, string dirname, string path) {
 
-    cout << "Creating directory " << dirname << " at " << path << endl;
+    cout << "Creating directory " << dirname << " at \"" << path << "\"" << endl;
 
     LPTF_Packet pckt = build_create_directory_request_packet(dirname, path);
-    pckt.print_specs();
+    clientSocket->write(pckt);
+
+    // check server reply
+    return wait_for_server_reply(clientSocket);
+}
+
+
+bool remove_directory(LPTF_Socket *clientSocket, string folder) {
+
+    cout << "Removing directory " << folder << endl;
+
+    LPTF_Packet pckt = build_remove_directory_request_packet(folder);
+    clientSocket->write(pckt);
+
+    // check server reply
+    return wait_for_server_reply(clientSocket);
+}
+
+
+bool rename_directory(LPTF_Socket *clientSocket, string newname, string path) {
+
+    cout << "Renaming directory \"" << path << "\" to \"" << newname << "\"" << endl;
+
+    LPTF_Packet pckt = build_rename_directory_request_packet(newname, path);
     clientSocket->write(pckt);
 
     // check server reply

@@ -190,6 +190,26 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             break;
         }
         
+        case DELETE_FOLDER_COMMAND:
+        {
+            string folder = get_path_from_remove_directory_request_packet(req);
+
+            cout << "Deleting folder \"" << folder << "\"" << endl;
+
+            remove_directory(serverSocket, clientSockfd, folder, username);
+            break;
+        }
+        
+        case RENAME_FOLDER_COMMAND:
+        {
+            RENAME_DIR_REQ_PACKET_STRUCT args = get_data_from_rename_directory_request_packet(req);
+
+            cout << "Renaming folder \"" << args.path << "\" to \"" << args.newname << "\"" << endl;
+
+            rename_directory(serverSocket, clientSockfd, args.newname, args.path, username);
+            break;
+        }
+        
         default:
         {
             string err_msg = "Not Implemented";

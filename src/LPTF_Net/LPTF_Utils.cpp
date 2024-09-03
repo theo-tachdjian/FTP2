@@ -113,6 +113,27 @@ LPTF_Packet build_create_directory_request_packet(const string dirname, const st
     return packet;
 }
 
+LPTF_Packet build_remove_directory_request_packet(string folder) {
+    return build_command_packet(DELETE_FOLDER_COMMAND, folder);
+}
+
+
+LPTF_Packet build_rename_directory_request_packet(const string newname, const string path) {
+    uint16_t size = newname.size()+1 + path.size();
+
+    uint8_t *rawcontent = (uint8_t*)malloc(size);
+
+    if (!rawcontent)
+        throw runtime_error("Memory allocation failed !");
+    
+    memcpy(rawcontent, newname.c_str(), newname.size()+1);
+    memcpy(rawcontent + newname.size()+1, path.c_str(), path.size());
+
+    LPTF_Packet packet(RENAME_FOLDER_COMMAND, rawcontent, size);
+    free(rawcontent);
+    return packet;
+}
+
 
 LPTF_Packet build_file_part_packet(void *data, uint16_t datalen) {
     LPTF_Packet packet(FILE_PART_PACKET, data, datalen);
@@ -267,7 +288,7 @@ CREATE_DIR_REQ_PACKET_STRUCT get_data_from_create_directory_request_packet(LPTF_
 
     const char *content = (const char *)packet.get_content();
 
-    // find dir name arg and path
+    // find new name and path args
     int i = 0;
     int arg_offset = 0;
     for (int n = 0; n < 2; n++) {
@@ -283,6 +304,49 @@ CREATE_DIR_REQ_PACKET_STRUCT get_data_from_create_directory_request_packet(LPTF_
             } else if (i == packet.get_header().length-1) {
                 if (n == 0)
                     result.dirname = string(content, i+1);
+                else
+                    result.path = string(content+arg_offset, i+1 - arg_offset);
+                i++;
+                arg_offset = i;
+                break;
+            }
+
+            i++;
+        }
+    }
+
+    return result;
+}
+
+string get_path_from_remove_directory_request_packet(LPTF_Packet &packet) {
+    if (packet.type() != DELETE_FOLDER_COMMAND) throw runtime_error("Invalid packet (type or length)");
+    return get_arg_from_command_packet(packet);
+}
+
+
+RENAME_DIR_REQ_PACKET_STRUCT get_data_from_rename_directory_request_packet(LPTF_Packet &packet) {
+    RENAME_DIR_REQ_PACKET_STRUCT result = {"", ""};
+
+    if (packet.type() != RENAME_FOLDER_COMMAND) throw runtime_error("Invalid packet (type or length)");
+
+    const char *content = (const char *)packet.get_content();
+
+    // find new name and path args
+    int i = 0;
+    int arg_offset = 0;
+    for (int n = 0; n < 2; n++) {
+        while (i < packet.get_header().length) {
+            if (content[i] == '\0') {
+                if (n == 0)
+                    result.newname = string(content, i);
+                else
+                    result.path = string(content+arg_offset, i - arg_offset);
+                i++;
+                arg_offset = i;
+                break;
+            } else if (i == packet.get_header().length-1) {
+                if (n == 0)
+                    result.newname = string(content, i+1);
                 else
                     result.path = string(content+arg_offset, i+1 - arg_offset);
                 i++;
