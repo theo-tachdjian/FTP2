@@ -70,7 +70,7 @@ bool check_command(int argc, char const *argv[]) {
 
 bool login(LPTF_Socket *clientSocket, string username) {
     // send "login" packet
-    LPTF_Packet pckt(LOGIN_PACKET, (void *)username.c_str(), username.size()+1);
+    LPTF_Packet pckt(LOGIN_PACKET, (void *)username.c_str(), username.size());
     clientSocket->write(pckt);
     // wait for server reply
     pckt = clientSocket->read();

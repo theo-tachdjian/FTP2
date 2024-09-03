@@ -160,7 +160,10 @@ string get_arg_from_command_packet(LPTF_Packet &packet) {
     }
 
     while (i < packet.get_header().length) {
-        if (content[i] == '\0' || i == packet.get_header().length-1) {
+        if (content[i] == '\0') {
+            arg = string(content+arg_offset, i - arg_offset);
+            break;
+        } else if (i == packet.get_header().length-1) {
             arg = string(content+arg_offset, i+1 - arg_offset);
             break;
         }
@@ -253,7 +256,10 @@ FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Pack
     string filepath;
 
     while (i < packet.get_header().length) {
-        if (content[i] == '\0' || i == packet.get_header().length-1) {
+        if (content[i] == '\0') {
+            filepath = string(content+offset, i - offset);
+            break;
+        } else if (i == packet.get_header().length-1) {
             filepath = string(content+offset, i+1 - offset);
             break;
         }

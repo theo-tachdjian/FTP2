@@ -26,6 +26,29 @@ uint32_t get_file_size(fs::path filepath) {
 }
 
 
+string list_directory_content(fs::path folderpath) {
+
+    const char *entry_prefix[] = {
+        "<FILE>\t",
+        "<DIR>\t"
+    };
+
+    string result = "";
+    
+    for (fs::directory_entry const& dir_entry : fs::directory_iterator{folderpath}) {
+        bool is_dir = fs::is_directory(dir_entry);
+        result.append(entry_prefix[is_dir]);
+        if (is_dir)
+            result.append(dir_entry.path().stem().string());
+        else
+            result.append(dir_entry.path().filename().string());
+        result.append("\n");
+    }
+
+    return result;
+}
+
+
 void check_server_root_folder() {
     fs::path sroot(SERVER_ROOT);
 

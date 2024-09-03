@@ -206,7 +206,8 @@ bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, s
 
 bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, string username) {
     fs::path folderpath = get_user_root(username);
-    folderpath /= path;
+    if (!path.empty())
+        folderpath /= path;
 
     cout << "Folderpath: " << folderpath << endl;
 
@@ -218,23 +219,9 @@ bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, st
         return false;
     }
 
-    const char *entry_prefix[] = {
-        "<FILE>\t",
-        "<DIR>\t"
-    };
-
     // list directory content
 
-    string result = "";
-    for (fs::directory_entry const& dir_entry : fs::directory_iterator{folderpath}) {
-        bool is_dir = fs::is_directory(dir_entry);
-        result.append(entry_prefix[is_dir]);
-        if (is_dir)
-            result.append(dir_entry.path().stem().string());
-        else
-            result.append(dir_entry.path().filename().string());
-        result.append("\n");
-    }
+    string result = list_directory_content(folderpath);
 
     if (result.size() == 0) result.append("(empty)");
 

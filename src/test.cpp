@@ -71,5 +71,8 @@ int main()
         }
     }
 
+    cout << "Directory contents from file_utils:" << endl;
+    cout << list_directory_content(erwan_path) << endl;
+
     return 0;
 }

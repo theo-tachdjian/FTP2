@@ -199,6 +199,8 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
         return;
     }
 
+    // username = "Erwan";
+
     try {
         // listen for command
 
@@ -207,7 +209,7 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
         if (req.type() == COMMAND_PACKET) {
 
             execute_command(serverSocket, clientSockfd, req, username);
-            
+
         } else {
             string err_msg = "Not Implemented";
             LPTF_Packet err_pckt = build_error_packet(req.type(), ERR_CMD_UNKNOWN, err_msg);
