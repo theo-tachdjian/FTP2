@@ -1,5 +1,4 @@
-#ifndef CLIENT_ACTIONS_H
-#define CLIENT_ACTIONS_H
+#pragma once
 
 #include <iostream>
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
@@ -14,4 +13,4 @@ bool delete_file(LPTF_Socket *clientSocket, string filename);
 
 bool list_directory(LPTF_Socket *clientSocket, string pathname);
 
-#endif
+bool create_directory(LPTF_Socket *clientSocket, string dirname, string path);

@@ -22,8 +22,11 @@ void print_help() {
     cout << "Usage:" << endl;
     cout << "\tlpf <ip>:<port> <command> [args]" << endl;
     cout << endl << "Available Commands:" << endl;
-    cout << "\t-upload <file>" << endl;
+    cout << "\t-upload <file> <path>" << endl;
     cout << "\t-download <file>" << endl;
+    cout << "\t-delete <file>" << endl;
+    cout << "\t-list <path>" << endl;
+    cout << "\t-create <foldername> <path>" << endl;
 }
 
 
@@ -31,7 +34,7 @@ bool check_command(int argc, char const *argv[]) {
     if (strcmp(argv[2], "-upload") == 0) {
         if (argc < 4)
             return false;
-        if (argc != 4) {
+        if (argc > 5) {
             cout << "Too much arguments !" << endl;
         } else {
             return true;
@@ -56,6 +59,14 @@ bool check_command(int argc, char const *argv[]) {
         if (argc < 3)
             return false;
         if (argc > 4) {
+            cout << "Too much arguments !" << endl;
+        } else {
+            return true;
+        }
+    } else if (strcmp(argv[2], "-create") == 0) {
+        if (argc < 4)
+            return false;
+        if (argc > 5) {
             cout << "Too much arguments !" << endl;
         } else {
             return true;
@@ -163,8 +174,16 @@ int main(int argc, char const *argv[]) {
 
         if (strcmp(argv[2], "-upload") == 0) {
 
-            string outfile = fs::path(argv[3]).filename();      // TODO replace when server has folders
             string file = argv[3];
+            string outfile;
+
+            if (argc == 5) {
+                // compose server path
+                outfile = fs::path(argv[4]) / fs::path(argv[3]).filename();
+            } else {
+                // upload to root dir
+                outfile = fs::path(argv[3]).filename();
+            }
 
             cout << "Uploading File " << file << " as " << outfile << endl;
 
@@ -174,15 +193,11 @@ int main(int argc, char const *argv[]) {
 
             string file = argv[3];
 
-            cout << "Downloading File " << file << endl;
-
             return !download_file(&clientSocket, file);
 
         } else if (strcmp(argv[2], "-delete") == 0) {
 
             string file = argv[3];
-
-            cout << "Deleting File " << file << endl;
 
             return !delete_file(&clientSocket, file);
 
@@ -194,10 +209,20 @@ int main(int argc, char const *argv[]) {
                 path = argv[3];
             }
 
-            cout << "Listing Directory content" << endl;
-
             return !list_directory(&clientSocket, path);
 
+        } else if (strcmp(argv[2], "-create") == 0) {
+
+            string dirname;
+            string path;
+
+            dirname = argv[3];
+
+            if (argc == 5) {
+                path = argv[4];
+            }
+
+            return !create_directory(&clientSocket, dirname, path);
         }
 
     } catch (const exception &ex) {

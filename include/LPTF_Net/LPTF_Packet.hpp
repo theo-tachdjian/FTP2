@@ -1,5 +1,4 @@
-#ifndef LPTF_PACKET_H
-#define LPTF_PACKET_H
+#pragma once
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -7,22 +6,22 @@
 
 #define REPLY_PACKET 0
 #define MESSAGE_PACKET 1
-#define COMMAND_PACKET 2
-#define BINARY_PACKET 3
-#define FILE_PART_PACKET 4
-#define LOGIN_PACKET 5
+
+// command packet types
+
+#define UPLOAD_FILE_COMMAND 2
+#define DOWNLOAD_FILE_COMMAND 3
+#define DELETE_FILE_COMMAND 4
+#define LIST_FILES_COMMAND 5
+#define CREATE_FOLDER_COMMAND 6
+#define DELETE_FOLDER_COMMAND 7
+#define RENAME_FOLDER_COMMAND 8
+
+#define FILE_PART_PACKET 9
+#define LOGIN_PACKET 10
 
 #define ERROR_PACKET 0xFF   // a packet type should not be higher than this value
 
-
-// commands available for COMMAND packet
-#define UPLOAD_FILE_COMMAND "UPLOAD"
-#define DOWNLOAD_FILE_COMMAND "DOWNLOAD"
-#define DELETE_FILE_COMMAND "RMFILE"
-#define LIST_FILES_COMMAND "LIST"
-#define CREATE_FOLDER_COMMAND "MKDIR"
-#define DELETE_FOLDER_COMMAND "RMDIR"
-#define RENAME_FOLDER_COMMAND "RNDIR"
 
 // command error codes
 #define ERR_CMD_FAILURE 0
@@ -70,5 +69,3 @@ class LPTF_Packet {
 
         void print_specs();
 };
-
-#endif

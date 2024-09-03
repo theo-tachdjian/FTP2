@@ -1,5 +1,4 @@
-#ifndef LPTF_SOCKET_H
-#define LPTF_SOCKET_H
+#pragma once
 
 #include <iostream>
 #include <stdexcept>
@@ -49,5 +48,3 @@ public:
 
     int close();
 };
-
-#endif

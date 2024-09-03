@@ -1,5 +1,4 @@
-#ifndef FILE_UTILS_H
-#define FILE_UTILS_H
+#pragma once
 
 #include <filesystem>
 
@@ -16,5 +15,3 @@ void check_user_root_folder(string username);
 
 fs::path get_server_root();
 fs::path get_user_root(string username);
-
-#endif

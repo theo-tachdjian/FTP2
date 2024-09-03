@@ -138,42 +138,65 @@ string wait_for_login(LPTF_Socket *serverSocket, int clientSockfd) {
 
 
 void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &req, string username) {
-    string cmd = get_command_from_command_packet(req);
+    cout << "Received command packet" << endl;
 
-    cout << "Received command " << cmd << endl;
+    switch (req.type()) {
+        case UPLOAD_FILE_COMMAND:
+        {
+            FILE_UPLOAD_REQ_PACKET_STRUCT transfer_args = get_data_from_file_upload_request_packet(req);
 
-    if (strcmp(cmd.c_str(), UPLOAD_FILE_COMMAND) == 0) {
-        FILE_UPLOAD_REQ_PACKET_STRUCT transfer_args = get_data_from_file_upload_request_packet(req);
+            cout << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize << endl;
 
-        cout << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize << endl;
+            receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize, username);
+            break;
+        }
+        case DOWNLOAD_FILE_COMMAND:
+        {
+            string filepath = get_file_from_file_download_request_packet(req);
 
-        receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize, username);
+            cout << "File to send: " << filepath << endl;
 
-    } else if (strcmp(cmd.c_str(), DOWNLOAD_FILE_COMMAND) == 0) {
-        string filepath = get_file_from_file_download_request_packet(req);
+            send_file(serverSocket, clientSockfd, filepath, username);
+            break;
+        }
+        
+        case DELETE_FILE_COMMAND:
+        {
+            string filepath = get_file_from_file_delete_request_packet(req);
 
-        cout << "File to send: " << filepath << endl;
+            cout << "File to delete: " << filepath << endl;
 
-        send_file(serverSocket, clientSockfd, filepath, username);
+            delete_file(serverSocket, clientSockfd, filepath, username);
+            break;
+        }
+        
+        case LIST_FILES_COMMAND:
+        {
+            string path = get_path_from_list_directory_request_packet(req);
 
-    } else if (strcmp(cmd.c_str(), DELETE_FILE_COMMAND) == 0) {
-        string filepath = get_file_from_file_delete_request_packet(req);
+            cout << "List directory content: \"" << path << "\"" << endl;
 
-        cout << "File to delete: " << filepath << endl;
+            list_directory(serverSocket, clientSockfd, path, username);
+            break;
+        }
+        
+        case CREATE_FOLDER_COMMAND:
+        {
+            CREATE_DIR_REQ_PACKET_STRUCT args = get_data_from_create_directory_request_packet(req);
 
-        delete_file(serverSocket, clientSockfd, filepath, username);
+            cout << "Creating folder \"" << args.dirname << "\" in \"" << args.path << "\"" << endl;
 
-    } else if (strcmp(cmd.c_str(), LIST_FILES_COMMAND) == 0) {
-        string path = get_path_from_list_directory_request_packet(req);
-
-        cout << "List directory content: \"" << path << "\"" << endl;
-
-        list_directory(serverSocket, clientSockfd, path, username);
-
-    } else {
-        string err_msg = "Not Implemented";
-        LPTF_Packet err_pckt = build_error_packet(COMMAND_PACKET, ERR_CMD_UNKNOWN, err_msg);
-        serverSocket->send(clientSockfd, err_pckt, 0);
+            create_directory(serverSocket, clientSockfd, args.dirname, args.path, username);
+            break;
+        }
+        
+        default:
+        {
+            string err_msg = "Not Implemented";
+            LPTF_Packet err_pckt = build_error_packet(req.type(), ERR_CMD_UNKNOWN, err_msg);
+            serverSocket->send(clientSockfd, err_pckt, 0);
+            break;
+        }
     }
 }
 
@@ -206,7 +229,7 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
 
         LPTF_Packet req = serverSocket->recv(clientSockfd, 0);
 
-        if (req.type() == COMMAND_PACKET) {
+        if (is_command_packet(req)) {
 
             execute_command(serverSocket, clientSockfd, req, username);
 

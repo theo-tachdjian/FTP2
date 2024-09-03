@@ -13,6 +13,13 @@ using namespace std;
 namespace fs = std::filesystem;
 
 
+void send_error_message(LPTF_Socket *serverSocket, int clientSockfd, uint8_t errfrom, string message, uint8_t errcode = ERR_CMD_FAILURE) {
+    cout << message << endl;
+    LPTF_Packet error_packet = build_error_packet(errfrom, errcode, message);
+    serverSocket->send(clientSockfd, error_packet, 0);
+}
+
+
 bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, string username) {
 
     fs::path filepath = get_user_root(username);
@@ -21,10 +28,7 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
     cout << "Filepath: " << filepath << endl;
 
     if (!fs::is_regular_file(filepath)) {
-        string msg("The file doesn't exist.");
-        cout << msg << endl;
-        LPTF_Packet error_packet = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, msg);
-        serverSocket->send(clientSockfd, error_packet, 0);
+        send_error_message(serverSocket, clientSockfd, DOWNLOAD_FILE_COMMAND, "The file doesn't exist.");
         return false;
     }
 
@@ -32,7 +36,7 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
 
     cout << filesize << endl;
 
-    LPTF_Packet pckt = build_reply_packet(COMMAND_PACKET, (void *)&filesize, sizeof(filesize));
+    LPTF_Packet pckt = build_reply_packet(DOWNLOAD_FILE_COMMAND, (void *)&filesize, sizeof(filesize));
     serverSocket->send(clientSockfd, pckt, 0);
 
     cout << "Start sending file to client" << endl;
@@ -79,9 +83,7 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
         file.close();
 
     } catch (const exception &ex) {
-        string msg = ex.what();
-        pckt = build_error_packet(ERROR_PACKET, ERR_CMD_FAILURE, msg);
-        serverSocket->send(clientSockfd, pckt, 0);
+        send_error_message(serverSocket, clientSockfd, DOWNLOAD_FILE_COMMAND, ex.what());
         file.close();
         return false;
     }
@@ -97,6 +99,11 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
 
     cout << "Filepath: " << filepath << endl;
 
+    if (!fs::is_directory(fs::path(filepath).remove_filename())) {
+        send_error_message(serverSocket, clientSockfd, UPLOAD_FILE_COMMAND, "Target directory doesn't exist !");
+        return false;
+    }
+
     ofstream outfile;
     outfile.open(filepath, ios::binary | ios::out);
 
@@ -106,15 +113,12 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
 
     // cannot open file for output
     if (curr_pos == -1) {
-        string err_msg = "Could not create file !";
-        cout << "Error: " << err_msg << endl;
-        pckt = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, err_msg);
-        serverSocket->send(clientSockfd, pckt, 0);
+        send_error_message(serverSocket, clientSockfd, UPLOAD_FILE_COMMAND, "Could not create file !");
         outfile.close();
         return false;
     }
 
-    pckt = build_reply_packet(COMMAND_PACKET, (void *)FILE_TRANSFER_REP_OK, strlen(FILE_TRANSFER_REP_OK));
+    pckt = build_reply_packet(UPLOAD_FILE_COMMAND, (void *)FILE_TRANSFER_REP_OK, strlen(FILE_TRANSFER_REP_OK));
     serverSocket->send(clientSockfd, pckt, 0);
 
     cout << "Start receiving file" << endl;
@@ -150,10 +154,7 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
         outfile.close();
 
     } catch (const exception &ex) {
-        string msg = ex.what();
-        cout << "Error when receiving file: " << msg << endl;
-        pckt = build_error_packet(FILE_PART_PACKET, ERR_CMD_UNKNOWN, msg);
-        serverSocket->send(clientSockfd, pckt, 0);
+        send_error_message(serverSocket, clientSockfd, UPLOAD_FILE_COMMAND, ex.what());
         outfile.close();
     }
 
@@ -178,10 +179,7 @@ bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, s
     cout << "Filepath: " << filepath << endl;
 
     if (!fs::is_regular_file(filepath)) {
-        string msg("The file doesn't exist.");
-        cout << msg << endl;
-        LPTF_Packet error_packet = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, msg);
-        serverSocket->send(clientSockfd, error_packet, 0);
+        send_error_message(serverSocket, clientSockfd, DELETE_FILE_COMMAND, "The file doesn't exist.");
         return false;
     }
 
@@ -189,16 +187,12 @@ bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, s
 
     if (fs::remove(filepath)) {
         uint8_t status = 1;
-        LPTF_Packet reply = build_reply_packet(COMMAND_PACKET, (void*)&status, sizeof(status));
+        LPTF_Packet reply = build_reply_packet(DELETE_FILE_COMMAND, (void*)&status, sizeof(status));
         serverSocket->send(clientSockfd, reply, 0);
 
         return true;
     } else {
-        string err_msg = "The file could not be removed.";
-        cout << "Error when removing file " << filepath << ": " << err_msg << endl;
-        LPTF_Packet err_pckt = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, err_msg);
-        serverSocket->send(clientSockfd, err_pckt, 0);
-
+        send_error_message(serverSocket, clientSockfd, DELETE_FILE_COMMAND, "The file could not be removed.");
         return false;
     }
 }
@@ -212,10 +206,7 @@ bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, st
     cout << "Folderpath: " << folderpath << endl;
 
     if (!fs::is_directory(folderpath) || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
-        string msg("The folder doesn't exist.");
-        cout << msg << endl;
-        LPTF_Packet error_packet = build_error_packet(COMMAND_PACKET, ERR_CMD_FAILURE, msg);
-        serverSocket->send(clientSockfd, error_packet, 0);
+        send_error_message(serverSocket, clientSockfd, LIST_FILES_COMMAND, "The folder doesn't exist.");
         return false;
     }
 
@@ -225,8 +216,43 @@ bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, st
 
     if (result.size() == 0) result.append("(empty)");
 
-    LPTF_Packet reply = build_reply_packet(COMMAND_PACKET, (void*)result.c_str(), result.size());
+    LPTF_Packet reply = build_reply_packet(LIST_FILES_COMMAND, (void*)result.c_str(), result.size());
     serverSocket->send(clientSockfd, reply, 0);
 
     return true;
+}
+
+
+bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirname, string path, string username) {
+    fs::path folderpath = get_user_root(username);
+    if (!path.empty())
+        folderpath /= path;
+    
+    if (!fs::is_directory(folderpath) || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
+        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "The folder doesn't exist.");
+        return false;
+    }
+
+    if (dirname.empty() || (dirname.at(0) == '/' || dirname.at(0) == '\\')) {
+        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Invalid directory name.");
+        return false;
+    }
+
+    if (fs::is_directory(folderpath / dirname)) {
+        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Directory already exists.");
+        return false;
+    }
+
+    // create directory
+
+    if (!fs::create_directory(folderpath / dirname)) {
+        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Failed to create directory !");
+        return false;
+    } else {
+        bool status = 1;
+        LPTF_Packet reply = build_reply_packet(CREATE_FOLDER_COMMAND, &status, sizeof(status));
+        serverSocket->send(clientSockfd, reply, 0);
+
+        return true;
+    }
 }

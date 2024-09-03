@@ -9,6 +9,15 @@
 using namespace std;
 
 
+bool is_command_packet(uint8_t type) {
+    return type >= UPLOAD_FILE_COMMAND && type <= RENAME_FOLDER_COMMAND;
+}
+
+bool is_command_packet(LPTF_Packet &packet) {
+    return is_command_packet(packet.type());
+}
+
+
 // repfrom is the packet type this reply refers to
 LPTF_Packet build_reply_packet(uint8_t repfrom, void *repcontent, uint16_t contentsize) {
     uint8_t *rawcontent = (uint8_t*)malloc(sizeof(uint8_t)+contentsize);
@@ -32,18 +41,8 @@ LPTF_Packet build_message_packet(const string &message) {
 }
 
 
-LPTF_Packet build_command_packet(const string &cmd, const string &arg) {
-    uint8_t *rawcontent = (uint8_t*)malloc(cmd.size() + arg.size() + 2);
-
-    if (!rawcontent)
-        throw runtime_error("Memory allocation failed !");
-    
-    memcpy(rawcontent, cmd.c_str(), cmd.size()+1);
-    memcpy(rawcontent + cmd.size() + 1, arg.c_str(), arg.size()+1);
-
-    LPTF_Packet packet(COMMAND_PACKET, rawcontent,
-                       cmd.size() +1 + arg.size() + 1);
-    free(rawcontent);
+LPTF_Packet build_command_packet(uint8_t cmd_type, const string &arg) {
+    LPTF_Packet packet(cmd_type, (void*)arg.c_str(), arg.size());
     return packet;
 }
 
@@ -67,8 +66,7 @@ LPTF_Packet build_error_packet(uint8_t errfrom, uint8_t err_code, string &errmsg
 
 
 LPTF_Packet build_file_upload_request_packet(const string filepath, uint32_t filesize) {
-    string command = UPLOAD_FILE_COMMAND;
-    size_t size = command.size()+1 + filepath.size()+1 + sizeof(filesize);
+    size_t size = filepath.size()+1 + sizeof(filesize);
     uint8_t *rawcontent = (uint8_t*)malloc(size);
 
     if (!rawcontent)
@@ -76,11 +74,10 @@ LPTF_Packet build_file_upload_request_packet(const string filepath, uint32_t fil
 
     filesize = htonl(filesize);
 
-    memcpy(rawcontent, command.c_str(), command.size()+1);
-    memcpy(rawcontent + command.size()+1, filepath.c_str(), filepath.size()+1);
-    memcpy(rawcontent + command.size()+1 + filepath.size()+1, &filesize, sizeof(filesize));
+    memcpy(rawcontent, filepath.c_str(), filepath.size()+1);
+    memcpy(rawcontent + filepath.size()+1, &filesize, sizeof(filesize));
 
-    LPTF_Packet packet(COMMAND_PACKET, rawcontent, size);
+    LPTF_Packet packet(UPLOAD_FILE_COMMAND, rawcontent, size);
 
     free(rawcontent);
     return packet;
@@ -100,10 +97,25 @@ LPTF_Packet build_list_directory_request_packet(const string pathname) {
     return build_command_packet(LIST_FILES_COMMAND, pathname);
 }
 
+LPTF_Packet build_create_directory_request_packet(const string dirname, const string path) {
+    uint16_t size = dirname.size()+1 + path.size();
+
+    uint8_t *rawcontent = (uint8_t*)malloc(size);
+
+    if (!rawcontent)
+        throw runtime_error("Memory allocation failed !");
+    
+    memcpy(rawcontent, dirname.c_str(), dirname.size()+1);
+    memcpy(rawcontent + dirname.size()+1, path.c_str(), path.size());
+
+    LPTF_Packet packet(CREATE_FOLDER_COMMAND, rawcontent, size);
+    free(rawcontent);
+    return packet;
+}
+
 
 LPTF_Packet build_file_part_packet(void *data, uint16_t datalen) {
     LPTF_Packet packet(FILE_PART_PACKET, data, datalen);
-
     return packet;
 }
 
@@ -119,52 +131,20 @@ string get_message_from_message_packet(LPTF_Packet &packet) {
 }
 
 
-string get_command_from_command_packet(LPTF_Packet &packet) {
-    string cmd;
-
-    if (packet.type() != COMMAND_PACKET) throw runtime_error("Invalid packet (type or length)");
-
-    const char *content = (const char *)packet.get_content();
-
-    int i = 0;
-    while (i < packet.get_header().length) {
-        if (content[i] == '\0' || i == packet.get_header().length-1) {
-            cmd = string(content, i+1);
-            break;
-        }
-
-        i++;
-    }
-
-    return cmd;
-}
-
-
 string get_arg_from_command_packet(LPTF_Packet &packet) {
     string arg;
 
-    if (packet.type() != COMMAND_PACKET) throw runtime_error("Invalid packet (type or length)");
+    if (!is_command_packet(packet)) throw runtime_error("Invalid packet (type or length)");
 
     const char *content = (const char *)packet.get_content();
 
     int i = 0;
-    int arg_offset = 0;
     while (i < packet.get_header().length) {
         if (content[i] == '\0') {
-            arg_offset = i+1;
-            i++;
-            break;
-        }
-
-        i++;
-    }
-
-    while (i < packet.get_header().length) {
-        if (content[i] == '\0') {
-            arg = string(content+arg_offset, i - arg_offset);
+            arg = string(content, i);
             break;
         } else if (i == packet.get_header().length-1) {
-            arg = string(content+arg_offset, i+1 - arg_offset);
+            arg = string(content, i+1);
             break;
         }
 
@@ -235,33 +215,19 @@ string get_error_content_from_error_packet(LPTF_Packet &packet) {
 
 
 FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Packet &packet) {
-    if (packet.type() != COMMAND_PACKET || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
+    if (!is_command_packet(packet) || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
 
     const char *content = (const char *)packet.get_content();
 
-    // find offset of args based on command name
-    // use size() to get the offset
-    int i = 0;
-    size_t offset = 0;
-    while (i < packet.get_header().length) {
-        if (content[i] == '\0') {
-            offset = i+1;
-            i++;
-            break;
-        }
-
-        i++;
-    }
-
     string filepath;
 
+    uint16_t i = 0;
     while (i < packet.get_header().length) {
         if (content[i] == '\0') {
-            filepath = string(content+offset, i - offset);
+            filepath = string(content, i);
             break;
-        } else if (i == packet.get_header().length-1) {
-            filepath = string(content+offset, i+1 - offset);
-            break;
+        } else if (i >= packet.get_header().length-1 - sizeof(uint32_t)) {
+            throw runtime_error("Invalid Packet structure ! (could not get filesize from file upload command)");
         }
 
         i++;
@@ -280,15 +246,55 @@ FILE_UPLOAD_REQ_PACKET_STRUCT get_data_from_file_upload_request_packet(LPTF_Pack
 
 
 string get_file_from_file_download_request_packet(LPTF_Packet &packet) {
+    if (packet.type() != DOWNLOAD_FILE_COMMAND) throw runtime_error("Invalid packet (type or length)");
     return get_arg_from_command_packet(packet);
 }
 
 string get_file_from_file_delete_request_packet(LPTF_Packet &packet) {
+    if (packet.type() != DELETE_FILE_COMMAND) throw runtime_error("Invalid packet (type or length)");
     return get_arg_from_command_packet(packet);
 }
 
 string get_path_from_list_directory_request_packet(LPTF_Packet &packet) {
+    if (packet.type() != LIST_FILES_COMMAND) throw runtime_error("Invalid packet (type or length)");
     return get_arg_from_command_packet(packet);
+}
+
+CREATE_DIR_REQ_PACKET_STRUCT get_data_from_create_directory_request_packet(LPTF_Packet &packet) {
+    CREATE_DIR_REQ_PACKET_STRUCT result = {"", ""};
+
+    if (packet.type() != CREATE_FOLDER_COMMAND) throw runtime_error("Invalid packet (type or length)");
+
+    const char *content = (const char *)packet.get_content();
+
+    // find dir name arg and path
+    int i = 0;
+    int arg_offset = 0;
+    for (int n = 0; n < 2; n++) {
+        while (i < packet.get_header().length) {
+            if (content[i] == '\0') {
+                if (n == 0)
+                    result.dirname = string(content, i);
+                else
+                    result.path = string(content+arg_offset, i - arg_offset);
+                i++;
+                arg_offset = i;
+                break;
+            } else if (i == packet.get_header().length-1) {
+                if (n == 0)
+                    result.dirname = string(content, i+1);
+                else
+                    result.path = string(content+arg_offset, i+1 - arg_offset);
+                i++;
+                arg_offset = i;
+                break;
+            }
+
+            i++;
+        }
+    }
+
+    return result;
 }
 
 
