@@ -11,6 +11,8 @@
 #include <queue>
 #include <thread>
 
+#include "../include/logger.hpp"
+
 using namespace std;
 
 namespace fs = std::filesystem;
@@ -18,19 +20,26 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    fs::path folder = get_user_root("TESTUSER");
-    fs::path folder2 = get_user_root("TESTUSER");
+    Logger logger ("test-log.txt");
 
-    folder2 /= "a";
+    logger.info("This is a log");
+    logger.warn("Client sent wrong packet");
+    logger.debug("Deeeeebugging");
+    logger.error("Error !!!");
 
-    cout << "Relative paths: " << fs::relative(folder2, folder) << endl;
-    cout << "Is " << folder2 <<" in " << folder << ": " << is_path_in_folder(folder2, folder) << endl;
+    // fs::path folder = get_user_root("TESTUSER");
+    // fs::path folder2 = get_user_root("TESTUSER");
 
-    folder2 = folder;
-    folder2 /= "file.txt";
+    // folder2 /= "a";
 
-    cout << "Relative paths: " << fs::relative(folder2, folder) << endl;
-    cout << "Is " << folder2 <<" in " << folder << ": " << is_path_in_folder(folder2, folder) << endl;
+    // cout << "Relative paths: " << fs::relative(folder2, folder) << endl;
+    // cout << "Is " << folder2 <<" in " << folder << ": " << is_path_in_folder(folder2, folder) << endl;
+
+    // folder2 = folder;
+    // folder2 /= "file.txt";
+
+    // cout << "Relative paths: " << fs::relative(folder2, folder) << endl;
+    // cout << "Is " << folder2 <<" in " << folder << ": " << is_path_in_folder(folder2, folder) << endl;
 
     // fs::path uroot = get_user_root("TESTUSER");
 

@@ -4,7 +4,8 @@
 #include <fstream>
 #include <filesystem>
 
-#define SERVER_ROOT "server_root"
+#define SERVER_DIR "server_root"
+#define SERVER_LOGS_DIR "logs"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -50,7 +51,7 @@ string list_directory_content(fs::path folderpath) {
 
 
 void check_server_root_folder() {
-    fs::path sroot(SERVER_ROOT);
+    fs::path sroot(SERVER_DIR);
 
     if (!fs::is_directory(sroot))
         if (!fs::create_directories(sroot))
@@ -70,7 +71,7 @@ void check_user_root_folder(string username) {
 
 fs::path get_server_root() {
     check_server_root_folder();
-    return fs::path(SERVER_ROOT);
+    return fs::path(SERVER_DIR);
 }
 
 
@@ -79,6 +80,21 @@ fs::path get_user_root(string username) {
     fs::path uroot = get_server_root();
     uroot /= username;
     return uroot;
+}
+
+
+void check_server_logs_folder() {
+    fs::path lroot(SERVER_LOGS_DIR);
+
+    if (!fs::is_directory(lroot))
+        if (!fs::create_directories(lroot))
+            throw runtime_error("create_directories() failed!");
+}
+
+
+fs::path get_server_logs_folder() {
+    check_server_logs_folder();
+    return fs::path(SERVER_LOGS_DIR);
 }
 
 

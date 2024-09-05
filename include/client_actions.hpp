@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include "../include/LPTF_Net/LPTF_Socket.hpp"
+#include "LPTF_Net/LPTF_Socket.hpp"
 
 using namespace std;
 

@@ -7,10 +7,13 @@
 #include <queue>
 #include <thread>
 
+#include <sstream>
+
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
 #include "../include/LPTF_Net/LPTF_Utils.hpp"
 #include "../include/server_actions.hpp"
 #include "../include/file_utils.hpp"
+#include "../include/logger.hpp"
 
 using namespace std;
 
@@ -137,26 +140,41 @@ string wait_for_login(LPTF_Socket *serverSocket, int clientSockfd) {
 }
 
 
-void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &req, string username) {
-    cout << "Received command packet" << endl;
+Logger *get_user_logger(string username) {
+    try {
+        return new Logger(get_server_logs_folder() / (username + ".txt"));
+    } catch (const runtime_error &ex) {
+        cerr << "Logger not available: " << ex.what() << endl;
+    }
+    return nullptr;
+}
+
+
+void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &req, string username, Logger *logger) {
+
+    log_info("Received command packet", logger);
 
     switch (req.type()) {
         case UPLOAD_FILE_COMMAND:
         {
             FILE_UPLOAD_REQ_PACKET_STRUCT transfer_args = get_data_from_file_upload_request_packet(req);
 
-            cout << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize << endl;
+            ostringstream msg;
+            msg << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize;
+            log_info(msg, logger);
 
-            receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize, username);
+            receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize, username, logger);
             break;
         }
         case DOWNLOAD_FILE_COMMAND:
         {
             string filepath = get_file_from_file_download_request_packet(req);
 
-            cout << "File to send: " << filepath << endl;
+            ostringstream msg;
+            msg << "File to send: " << filepath;
+            log_info(msg, logger);
 
-            send_file(serverSocket, clientSockfd, filepath, username);
+            send_file(serverSocket, clientSockfd, filepath, username, logger);
             break;
         }
         
@@ -164,9 +182,11 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
         {
             string filepath = get_file_from_file_delete_request_packet(req);
 
-            cout << "File to delete: " << filepath << endl;
+            ostringstream msg;
+            msg << "File to delete: " << filepath;
+            log_info(msg, logger);
 
-            delete_file(serverSocket, clientSockfd, filepath, username);
+            delete_file(serverSocket, clientSockfd, filepath, username, logger);
             break;
         }
         
@@ -174,9 +194,11 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
         {
             string path = get_path_from_list_directory_request_packet(req);
 
-            cout << "List directory content: \"" << path << "\"" << endl;
+            ostringstream msg;
+            msg << "List directory content: \"" << path << "\"";
+            log_info(msg, logger);
 
-            list_directory(serverSocket, clientSockfd, path, username);
+            list_directory(serverSocket, clientSockfd, path, username, logger);
             break;
         }
         
@@ -184,9 +206,11 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
         {
             CREATE_DIR_REQ_PACKET_STRUCT args = get_data_from_create_directory_request_packet(req);
 
-            cout << "Creating folder \"" << args.dirname << "\" in \"" << args.path << "\"" << endl;
+            ostringstream msg;
+            msg << "Creating folder \"" << args.dirname << "\" in \"" << args.path << "\"";
+            log_info(msg, logger);
 
-            create_directory(serverSocket, clientSockfd, args.dirname, args.path, username);
+            create_directory(serverSocket, clientSockfd, args.dirname, args.path, username, logger);
             break;
         }
         
@@ -194,9 +218,11 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
         {
             string folder = get_path_from_remove_directory_request_packet(req);
 
-            cout << "Deleting folder \"" << folder << "\"" << endl;
+            ostringstream msg;
+            msg << "Deleting folder \"" << folder << "\"";
+            log_info(msg, logger);
 
-            remove_directory(serverSocket, clientSockfd, folder, username);
+            remove_directory(serverSocket, clientSockfd, folder, username, logger);
             break;
         }
         
@@ -204,14 +230,18 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
         {
             RENAME_DIR_REQ_PACKET_STRUCT args = get_data_from_rename_directory_request_packet(req);
 
-            cout << "Renaming folder \"" << args.path << "\" to \"" << args.newname << "\"" << endl;
+            ostringstream msg;
+            msg << "Renaming folder \"" << args.path << "\" to \"" << args.newname << "\"";
+            log_info(msg, logger);
 
-            rename_directory(serverSocket, clientSockfd, args.newname, args.path, username);
+            rename_directory(serverSocket, clientSockfd, args.newname, args.path, username, logger);
             break;
         }
         
         default:
         {
+            log_error("Got unexpected command from client", logger);
+
             string err_msg = "Not Implemented";
             LPTF_Packet err_pckt = build_error_packet(req.type(), ERR_CMD_UNKNOWN, err_msg);
             serverSocket->send(clientSockfd, err_pckt, 0);
@@ -244,6 +274,13 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
 
     // username = "Erwan";
 
+    // can be null
+    Logger *logger = get_user_logger(username);
+    
+    ostringstream msg;
+    msg << "User \"" << username << "\": " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " (len:" << clientAddrLen << ")";
+    log_info(msg, logger);
+
     try {
         // listen for command
 
@@ -251,19 +288,25 @@ void handle_client(LPTF_Socket *serverSocket, int clientSockfd, struct sockaddr_
 
         if (is_command_packet(req)) {
 
-            execute_command(serverSocket, clientSockfd, req, username);
+            execute_command(serverSocket, clientSockfd, req, username, logger);
 
         } else {
+            ostringstream msg;
+            msg << "Got non-command packet from client: \"" << req.type() << "\"";
+            log_error(msg, logger);
+            
             string err_msg = "Not Implemented";
             LPTF_Packet err_pckt = build_error_packet(req.type(), ERR_CMD_UNKNOWN, err_msg);
             serverSocket->send(clientSockfd, err_pckt, 0);
         }
 
     } catch (const exception &ex) {
-        cout << "Error when handling client " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " : " << ex.what() << endl;    
+        ostringstream msg;
+        msg << "Error when handling client " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " : " << ex.what();
+        log_error(msg, logger);
     }
 
-    cout << "Closing client connection" << endl;
+    log_info("Closing client connection", logger);
     close(clientSockfd);
 }
 

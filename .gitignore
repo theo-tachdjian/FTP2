@@ -7,3 +7,4 @@ test
 test.exe
 Tests/
 server_root/*
+logs/
