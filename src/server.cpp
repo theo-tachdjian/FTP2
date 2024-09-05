@@ -160,7 +160,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             FILE_UPLOAD_REQ_PACKET_STRUCT transfer_args = get_data_from_file_upload_request_packet(req);
 
             ostringstream msg;
-            msg << "Arguments: " << transfer_args.filepath << ", " << transfer_args.filesize;
+            msg << "UPLOAD_FILE_COMMAND: \"" << transfer_args.filepath << "\", " << transfer_args.filesize;
             log_info(msg, logger);
 
             receive_file(serverSocket, clientSockfd, transfer_args.filepath, transfer_args.filesize, username, logger);
@@ -171,7 +171,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             string filepath = get_file_from_file_download_request_packet(req);
 
             ostringstream msg;
-            msg << "File to send: " << filepath;
+            msg << "DOWNLOAD_FILE_COMMAND: \"" << filepath << "\"";
             log_info(msg, logger);
 
             send_file(serverSocket, clientSockfd, filepath, username, logger);
@@ -183,7 +183,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             string filepath = get_file_from_file_delete_request_packet(req);
 
             ostringstream msg;
-            msg << "File to delete: " << filepath;
+            msg << "DELETE_FILE_COMMAND: \"" << filepath << "\"";
             log_info(msg, logger);
 
             delete_file(serverSocket, clientSockfd, filepath, username, logger);
@@ -195,7 +195,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             string path = get_path_from_list_directory_request_packet(req);
 
             ostringstream msg;
-            msg << "List directory content: \"" << path << "\"";
+            msg << "LIST_FILES_COMMAND: \"" << path << "\"";
             log_info(msg, logger);
 
             list_directory(serverSocket, clientSockfd, path, username, logger);
@@ -207,7 +207,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             CREATE_DIR_REQ_PACKET_STRUCT args = get_data_from_create_directory_request_packet(req);
 
             ostringstream msg;
-            msg << "Creating folder \"" << args.dirname << "\" in \"" << args.path << "\"";
+            msg << "CREATE_FOLDER_COMMAND: \"" << args.dirname << "\", \"" << args.path << "\"";
             log_info(msg, logger);
 
             create_directory(serverSocket, clientSockfd, args.dirname, args.path, username, logger);
@@ -219,7 +219,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             string folder = get_path_from_remove_directory_request_packet(req);
 
             ostringstream msg;
-            msg << "Deleting folder \"" << folder << "\"";
+            msg << "DELETE_FOLDER_COMMAND: \"" << folder << "\"";
             log_info(msg, logger);
 
             remove_directory(serverSocket, clientSockfd, folder, username, logger);
@@ -231,7 +231,7 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             RENAME_DIR_REQ_PACKET_STRUCT args = get_data_from_rename_directory_request_packet(req);
 
             ostringstream msg;
-            msg << "Renaming folder \"" << args.path << "\" to \"" << args.newname << "\"";
+            msg << "RENAME_FOLDER_COMMAND: \"" << args.path << "\", \"" << args.newname << "\"";
             log_info(msg, logger);
 
             rename_directory(serverSocket, clientSockfd, args.newname, args.path, username, logger);
