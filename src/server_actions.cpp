@@ -209,8 +209,8 @@ bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, st
 
     cout << "Folderpath: " << folderpath << endl;
 
-    if (!is_path_in_folder(folderpath, user_root) || !fs::is_directory(folderpath)
-        || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
+    if (!fs::equivalent(user_root, folderpath) && (!is_path_in_folder(folderpath, user_root) || !fs::is_directory(folderpath)
+        || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\')))) {
         send_error_message(serverSocket, clientSockfd, LIST_FILES_COMMAND, "The folder doesn't exist.");
         return false;
     }
