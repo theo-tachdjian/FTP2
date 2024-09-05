@@ -7,6 +7,7 @@
 #include <queue>
 #include <thread>
 
+#include <map>
 #include <sstream>
 
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
@@ -17,6 +18,7 @@
 
 using namespace std;
 
+#define PASSWORD_FILE "very_safe_trust_me_bro.txt"
 
 // borrowed from https://www.geeksforgeeks.org/thread-pool-in-cpp/
 class ThreadPool { 
@@ -99,42 +101,71 @@ private:
 };
 
 
+std::map<std::string, std::string> read_passwords() {
+    std::ifstream file(PASSWORD_FILE);
+    std::map<std::string, std::string> passwords;
+    std::string line;
+    
+    while (std::getline(file, line)) {
+        size_t sep = line.find(':');
+        if (sep != std::string::npos) {
+            std::string username = line.substr(0, sep);
+            std::string password = line.substr(sep + 1);
+            passwords[username] = password;
+        }
+    }
+    file.close();
+    return passwords;
+}
+
+void write_password(const std::string &username, const std::string &password) {
+    std::ofstream file(PASSWORD_FILE, std::ios::app);
+    file << username << ":" << password << std::endl;
+    file.close();
+}
+
+
 string wait_for_login(LPTF_Socket *serverSocket, int clientSockfd) {
-    // wait for login
+    std::map<std::string, std::string> passwords = read_passwords();
 
     while (true) {
-        // listen for login packet
         LPTF_Packet pckt = serverSocket->recv(clientSockfd, 0);
 
         if (pckt.type() == LOGIN_PACKET) {
-            try {
-                // string username = "Erwan";
-                string username = string((const char *)pckt.get_content(), pckt.get_header().length);
-
-                // create folders
-                check_user_root_folder(username);
-
-                pckt = build_reply_packet(LOGIN_PACKET, (void*)"OK", 2);
-                serverSocket->send(clientSockfd, pckt, 0);
-
-                return username;
-            } catch (const exception &ex) {
-                string err_msg;
-                err_msg.append("Error when logging in client: ");
-                err_msg.append(ex.what());
-
-                LPTF_Packet error_pckt = build_error_packet(pckt.type(), ERR_CMD_UNKNOWN, err_msg);
-                serverSocket->send(clientSockfd, error_pckt, 0);
+            std::string username((const char *)pckt.get_content(), pckt.get_header().length);
+            if (passwords.find(username) != passwords.end()) {
+                // User exists, ask for password
+                LPTF_Packet ask_password_packet = build_message_packet("Enter Password:");
+                serverSocket->send(clientSockfd, ask_password_packet, 0);
+                LPTF_Packet password_packet = serverSocket->recv(clientSockfd, 0);
+                std::string password((const char *)password_packet.get_content(), password_packet.get_header().length);
                 
-                cout << err_msg << endl;
-                return "";
+                if (password == passwords[username]) {
+                    LPTF_Packet success_packet = build_reply_packet(LOGIN_PACKET, (void*)"OK", 2);
+                    serverSocket->send(clientSockfd, success_packet, 0);
+                    return username;
+                } else {
+                    string err_msg = "Wrong Password.";
+                    LPTF_Packet error_packet = build_error_packet(LOGIN_PACKET, ERR_CMD_UNKNOWN, err_msg);
+                    serverSocket->send(clientSockfd, error_packet, 0);
+                }
+            } else {
+                // User doesn't exist, ask for new password
+                LPTF_Packet ask_password_packet = build_message_packet("Create a new Password:");
+                serverSocket->send(clientSockfd, ask_password_packet, 0);
+                LPTF_Packet password_packet = serverSocket->recv(clientSockfd, 0);
+                std::string password((const char *)password_packet.get_content(), password_packet.get_header().length);
+                
+                write_password(username, password);
+                check_user_root_folder(username);
+                LPTF_Packet success_packet = build_reply_packet(LOGIN_PACKET, (void*)"OK", 2);
+                serverSocket->send(clientSockfd, success_packet, 0);
+                return username;
             }
         } else {
             string err_msg = "You must log in to perform this action.";
-            LPTF_Packet error_pckt = build_error_packet(pckt.type(), ERR_CMD_UNKNOWN, err_msg);
-            serverSocket->send(clientSockfd, error_pckt, 0);
-
-            return "";
+            LPTF_Packet error_packet = build_error_packet(pckt.type(), ERR_CMD_UNKNOWN, err_msg);
+            serverSocket->send(clientSockfd, error_packet, 0);
         }
     }
 }
