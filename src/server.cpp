@@ -271,6 +271,14 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
             break;
         }
         
+        case USER_TREE_COMMAND:
+        {
+            log_info("USER_TREE_COMMAND", logger);
+
+            list_user_tree(serverSocket, clientSockfd, username, logger);
+            break;
+        }
+        
         default:
         {
             log_error("Got unexpected command from client", logger);

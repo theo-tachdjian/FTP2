@@ -16,9 +16,10 @@
 #define CREATE_FOLDER_COMMAND 6
 #define DELETE_FOLDER_COMMAND 7
 #define RENAME_FOLDER_COMMAND 8
+#define USER_TREE_COMMAND 9
 
-#define FILE_PART_PACKET 9
-#define LOGIN_PACKET 10
+#define BINARY_PART_PACKET 10
+#define LOGIN_PACKET 11
 
 #define ERROR_PACKET 0xFF   // a packet type should not be higher than this value
 
@@ -37,8 +38,8 @@ typedef struct {
 
 #define FILE_TRANSFER_REP_OK "OK"
 
-// constexpr uint16_t MAX_FILE_PART_BYTES = UINT16_MAX - sizeof(PACKET_HEADER) - sizeof(uint32_t) - sizeof(uint32_t);
-constexpr uint16_t MAX_FILE_PART_BYTES = 8000;
+// constexpr uint16_t MAX_BINARY_PART_BYTES = UINT16_MAX - sizeof(PACKET_HEADER) - sizeof(uint32_t) - sizeof(uint32_t);
+constexpr uint16_t MAX_BINARY_PART_BYTES = 8000;
 
 
 class LPTF_Packet {

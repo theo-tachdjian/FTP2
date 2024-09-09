@@ -68,12 +68,12 @@ bool download_file(LPTF_Socket *clientSocket, string filename) {
         do {
             pckt = clientSocket->read();
 
-            if (pckt.type() != FILE_PART_PACKET) {
-                cerr << "Packet is not a File Part Packet ! (" << pckt.type() << ")" << endl;
+            if (pckt.type() != BINARY_PART_PACKET) {
+                cerr << "Packet is not a Binary Part Packet ! (" << pckt.type() << ")" << endl;
                 break;
             }
 
-            FILE_PART_PACKET_STRUCT data = get_data_from_file_data_packet(pckt);
+            BINARY_PART_PACKET_STRUCT data = get_data_from_binary_part_packet(pckt);
 
             // cout << "File part Data Len: " << data.len << endl;
 
@@ -84,7 +84,7 @@ bool download_file(LPTF_Socket *clientSocket, string filename) {
             // notify server
             // this is required to not overflow? the socket
             char repc = 0;
-            pckt = build_reply_packet(FILE_PART_PACKET, &repc, 1);
+            pckt = build_reply_packet(BINARY_PART_PACKET, &repc, 1);
             clientSocket->write(pckt);
         } while (static_cast<uint32_t>(curr_pos) < filesize);
         
@@ -147,7 +147,7 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
 
     cout << "Sending file to server..." << endl;
 
-    char buffer[MAX_FILE_PART_BYTES];
+    char buffer[MAX_BINARY_PART_BYTES];
 
     ifstream file(targetfile, ios::binary);
 
@@ -161,15 +161,15 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
         streampos curr_pos = begin;
         do {
             uint16_t read_size;
-            if (MAX_FILE_PART_BYTES + curr_pos > end) {
+            if (MAX_BINARY_PART_BYTES + curr_pos > end) {
                 read_size = end - curr_pos;
             } else {
-                read_size = MAX_FILE_PART_BYTES;
+                read_size = MAX_BINARY_PART_BYTES;
             }
 
             file.read(buffer, read_size);
 
-            pckt = build_file_part_packet(buffer, static_cast<uint16_t>(read_size));
+            pckt = build_binary_part_packet(buffer, static_cast<uint16_t>(read_size));
             clientSocket->write(pckt);
 
             curr_pos = file.tellg();
@@ -266,4 +266,52 @@ bool rename_directory(LPTF_Socket *clientSocket, string newname, string path) {
 
     // check server reply
     return wait_for_server_reply(clientSocket);
+}
+
+
+bool list_tree(LPTF_Socket *clientSocket) {
+
+    cout << "Listing user directory tree" << endl;
+
+    LPTF_Packet pckt = build_command_packet(USER_TREE_COMMAND, "");
+    clientSocket->write(pckt);
+
+    cout << "Start receiving directory tree from server" << endl;
+
+    try {
+
+        do {
+            pckt = clientSocket->read();
+
+            if (pckt.type() != BINARY_PART_PACKET) {
+                cerr << "Packet is not a Binary Part Packet ! (" << pckt.type() << ")" << endl;
+                break;
+            }
+
+            BINARY_PART_PACKET_STRUCT data = get_data_from_binary_part_packet(pckt);
+
+            cout.write((const char*)data.data, data.len);
+            cout.flush();
+
+            // notify server
+            // this is required to not overflow? the socket
+            char repc = 0;
+            pckt = build_reply_packet(BINARY_PART_PACKET, &repc, 1);
+            clientSocket->write(pckt);
+
+            // break if len of data is smaller than MAX_BINARY_PART_BYTES
+            if (data.len != MAX_BINARY_PART_BYTES) break;
+
+        } while (true);
+
+    } catch (const exception &ex) {
+        string msg = ex.what();
+        cout << "Error when receiving dir tree: " << msg << endl;
+        pckt = build_error_packet(ERROR_PACKET, ERR_CMD_UNKNOWN, msg);
+        clientSocket->write(pckt);
+    }
+
+    cout << "Done" << endl;
+
+    return true;
 }

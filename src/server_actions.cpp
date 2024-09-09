@@ -57,7 +57,7 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
     msg << "Start sending file " << filepath << " (" << filesize << " byte(s)) to client";
     log_info(msg, logger);
 
-    char buffer[MAX_FILE_PART_BYTES];
+    char buffer[MAX_BINARY_PART_BYTES];
 
     ifstream file(filepath, ios::binary);
 
@@ -71,15 +71,15 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
         streampos curr_pos = begin;
         do {
             uint16_t read_size;
-            if (MAX_FILE_PART_BYTES + curr_pos > end) {
+            if (MAX_BINARY_PART_BYTES + curr_pos > end) {
                 read_size = end - curr_pos;
             } else {
-                read_size = MAX_FILE_PART_BYTES;
+                read_size = MAX_BINARY_PART_BYTES;
             }
 
             file.read(buffer, read_size);
 
-            pckt = build_file_part_packet(buffer, static_cast<uint16_t>(read_size));
+            pckt = build_binary_part_packet(buffer, static_cast<uint16_t>(read_size));
             serverSocket->send(clientSockfd, pckt, 0);
 
             curr_pos = file.tellg();
@@ -149,14 +149,14 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
         do {
             pckt = serverSocket->recv(clientSockfd, 0);
 
-            if (pckt.type() != FILE_PART_PACKET) {
+            if (pckt.type() != BINARY_PART_PACKET) {
                 ostringstream err_msg;
                 err_msg << "Packet is not a File Part Packet ! (" << pckt.type() << ")";
                 log_error(err_msg, logger);
                 break;
             }
 
-            FILE_PART_PACKET_STRUCT data = get_data_from_file_data_packet(pckt);
+            BINARY_PART_PACKET_STRUCT data = get_data_from_binary_part_packet(pckt);
 
             // cout << "File part Data Len: " << data.len << endl;
 
@@ -170,7 +170,7 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
             // send reply to client
             // this is required to not overflow? the socket
             char repc = 0;
-            pckt = build_reply_packet(FILE_PART_PACKET, &repc, 1);
+            pckt = build_reply_packet(BINARY_PART_PACKET, &repc, 1);
             serverSocket->send(clientSockfd, pckt, 0);
         } while (static_cast<uint32_t>(curr_pos) < filesize);
         
@@ -392,4 +392,95 @@ bool rename_directory(LPTF_Socket *serverSocket, int clientSockfd, string newnam
         send_error_message(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND, ex.what(), logger);
         return false;
     }
+}
+
+
+bool list_user_tree(LPTF_Socket *serverSocket, int clientSockfd, string username, Logger *logger) {
+    fs::path user_root = get_user_root(username);
+
+    log_info("Start sending directory tree to client", logger);
+
+    try {
+
+        size_t urlen = user_root.string().size();
+        string content;
+        LPTF_Packet pckt;
+
+        for (fs::directory_entry const& dir_entry : fs::recursive_directory_iterator(user_root)) {
+            content.append((const char *)(dir_entry.path().string().c_str() + urlen+1));
+            if (fs::is_directory(dir_entry)) content.push_back(dir_entry.path().preferred_separator);
+            content.push_back('\n');
+
+            if (content.size() > MAX_BINARY_PART_BYTES) {
+                pckt = build_binary_part_packet((void *)content.c_str(), MAX_BINARY_PART_BYTES);
+                serverSocket->send(clientSockfd, pckt, 0);
+
+                // wait for client reply
+                pckt = serverSocket->recv(clientSockfd, 0);
+
+                if (pckt.type() != REPLY_PACKET) {
+                    log_error("Unexpected packet type!", logger);
+                    return false;
+                }
+
+                content.erase(0, MAX_BINARY_PART_BYTES);
+            }
+        }
+
+        // if no entries
+        if (content.size() == 0) {
+            pckt = build_binary_part_packet(nullptr, 0);
+            serverSocket->send(clientSockfd, pckt, 0);
+
+            // wait for client reply
+            pckt = serverSocket->recv(clientSockfd, 0);
+
+            if (pckt.type() != REPLY_PACKET) {
+                log_error("Unexpected packet type!", logger);
+                return false;
+            }
+
+            return true;
+        }
+
+        // build packets with the remaining content
+        while (content.size() != 0) {
+            uint16_t datalen;
+            if (content.size() > MAX_BINARY_PART_BYTES) datalen = MAX_BINARY_PART_BYTES;
+            else datalen = static_cast<uint16_t>(content.size());
+
+            pckt = build_binary_part_packet((void *)content.c_str(), datalen);
+            serverSocket->send(clientSockfd, pckt, 0);
+
+            // wait for client reply
+            pckt = serverSocket->recv(clientSockfd, 0);
+
+            if (pckt.type() != REPLY_PACKET) {
+                log_error("Unexpected packet type!", logger);
+                return false;
+            }
+
+            content.erase(0, datalen);
+
+            // send empty bin part packet to tell the client to stop waiting for data
+            if (datalen == MAX_BINARY_PART_BYTES && content.size() == 0) {
+                pckt = build_binary_part_packet(nullptr, 0);
+                serverSocket->send(clientSockfd, pckt, 0);
+
+                // wait for client reply
+                pckt = serverSocket->recv(clientSockfd, 0);
+
+                if (pckt.type() != REPLY_PACKET) {
+                    log_error("Unexpected packet type!", logger);
+                    return false;
+                }
+            }
+        }
+        
+    } catch (const exception &ex) {
+        send_error_message(serverSocket, clientSockfd, USER_TREE_COMMAND, ex.what(), logger);
+        return false;
+    }
+
+    return true;
 }

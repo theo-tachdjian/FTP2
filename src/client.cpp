@@ -29,6 +29,7 @@ void print_help() {
     cout << "\t-create <folder>" << endl;
     cout << "\t-rm <folder>" << endl;
     cout << "\t-rename <name> <folder>" << endl;
+    cout << "\t-tree" << endl;
 }
 
 
@@ -96,6 +97,11 @@ bool check_command(int argc, char const *argv[]) {
         } else {
             return true;
         }
+    } else if (strcmp(argv[2], "-tree") == 0) {
+        if (argc > 3) {
+            cout << "Too much arguments !" << endl;
+            return false;
+        } else return argc == 3;
     } else {
         cout << "Unknown command !" << endl;
     }
@@ -277,6 +283,9 @@ int main(int argc, char const *argv[]) {
             string path = argv[4];
 
             return !rename_directory(&clientSocket, newname, path);
+        } else if (strcmp(argv[2], "-tree") == 0) {
+
+            return !list_tree(&clientSocket);
         }
 
     } catch (const exception &ex) {

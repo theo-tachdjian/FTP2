@@ -18,3 +18,5 @@ bool create_directory(LPTF_Socket *clientSocket, string folder);
 bool remove_directory(LPTF_Socket *clientSocket, string folder);
 
 bool rename_directory(LPTF_Socket *clientSocket, string newname, string path);
+
+bool list_tree(LPTF_Socket *clientSocket);

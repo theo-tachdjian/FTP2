@@ -18,3 +18,5 @@ bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder
 bool remove_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder, string username, Logger *logger);
 
 bool rename_directory(LPTF_Socket *serverSocket, int clientSockfd, string newname, string path, string username, Logger *logger);
+
+bool list_user_tree(LPTF_Socket *serverSocket, int clientSockfd, string username, Logger *logger);

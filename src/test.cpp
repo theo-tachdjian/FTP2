@@ -20,12 +20,22 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    Logger logger ("test-log.txt");
+    fs::path folder (get_user_root("Erwan"));
 
-    logger.info("This is a log");
-    logger.warn("Client sent wrong packet");
-    logger.debug("Deeeeebugging");
-    logger.error("Error !!!");
+    int len = folder.string().size();
+
+    for (fs::directory_entry const& dir_entry : fs::recursive_directory_iterator(folder)) {
+        cout << (const char *)(dir_entry.path().string().c_str() + len+1);
+        if (fs::is_directory(dir_entry)) cout << dir_entry.path().preferred_separator;
+        cout << endl;
+    }
+
+    // Logger logger ("test-log.txt");
+
+    // logger.info("This is a log");
+    // logger.warn("Client sent wrong packet");
+    // logger.debug("Deeeeebugging");
+    // logger.error("Error !!!");
 
     // fs::path folder = get_user_root("TESTUSER");
     // fs::path folder2 = get_user_root("TESTUSER");

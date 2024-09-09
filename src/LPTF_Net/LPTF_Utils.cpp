@@ -10,7 +10,7 @@ using namespace std;
 
 
 bool is_command_packet(uint8_t type) {
-    return type >= UPLOAD_FILE_COMMAND && type <= RENAME_FOLDER_COMMAND;
+    return type >= UPLOAD_FILE_COMMAND && type <= USER_TREE_COMMAND;
 }
 
 bool is_command_packet(LPTF_Packet &packet) {
@@ -123,8 +123,8 @@ LPTF_Packet build_rename_directory_request_packet(const string newname, const st
 }
 
 
-LPTF_Packet build_file_part_packet(void *data, uint16_t datalen) {
-    LPTF_Packet packet(FILE_PART_PACKET, data, datalen);
+LPTF_Packet build_binary_part_packet(void *data, uint16_t datalen) {
+    LPTF_Packet packet(BINARY_PART_PACKET, data, datalen);
     return packet;
 }
 
@@ -318,8 +318,8 @@ RENAME_DIR_REQ_PACKET_STRUCT get_data_from_rename_directory_request_packet(LPTF_
 }
 
 
-FILE_PART_PACKET_STRUCT get_data_from_file_data_packet(LPTF_Packet &packet) {
-    if (packet.type() != FILE_PART_PACKET || packet.get_header().length < 2) throw runtime_error("Invalid packet (type or length)");
+BINARY_PART_PACKET_STRUCT get_data_from_binary_part_packet(LPTF_Packet &packet) {
+    if (packet.type() != BINARY_PART_PACKET) throw runtime_error("Invalid packet (type or length)");
 
     return {(const char *)packet.get_content(), static_cast<uint16_t>(packet.get_header().length)};
 }

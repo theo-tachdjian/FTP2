@@ -16,4 +16,4 @@ typedef struct {
 typedef struct {
     const void *data;
     uint16_t len;
-} FILE_PART_PACKET_STRUCT;
+} BINARY_PART_PACKET_STRUCT;
