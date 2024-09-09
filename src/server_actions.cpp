@@ -24,6 +24,13 @@ void send_error_message(LPTF_Socket *serverSocket, int clientSockfd, uint8_t err
 }
 
 
+void send_ok_reply(LPTF_Socket *serverSocket, int clientSockfd, uint8_t repfrom) {
+    uint8_t status = 1;
+    LPTF_Packet reply = build_reply_packet(repfrom, &status, sizeof(status));
+    serverSocket->send(clientSockfd, reply, 0);
+}
+
+
 bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, string username, Logger *logger) {
 
     fs::path user_root = get_user_root(username);
@@ -83,7 +90,7 @@ bool send_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, str
             
             if (pckt.type() != REPLY_PACKET) {
                 log_error("Unexpected packet type!", logger);
-                pckt.print_specs();
+                // pckt.print_specs();
                 break;
             }
 
@@ -151,7 +158,7 @@ bool receive_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, 
 
             FILE_PART_PACKET_STRUCT data = get_data_from_file_data_packet(pckt);
 
-            cout << "File part Data Len: " << data.len << endl;
+            // cout << "File part Data Len: " << data.len << endl;
 
             outfile.write((const char*)data.data, data.len);
 
@@ -218,10 +225,7 @@ bool delete_file(LPTF_Socket *serverSocket, int clientSockfd, string filename, s
     if (fs::remove(filepath)) {
         log_info("File deleted", logger);
 
-        uint8_t status = 1;
-        LPTF_Packet reply = build_reply_packet(DELETE_FILE_COMMAND, (void*)&status, sizeof(status));
-        serverSocket->send(clientSockfd, reply, 0);
-
+        send_ok_reply(serverSocket, clientSockfd, DELETE_FILE_COMMAND);
         return true;
     } else {
         send_error_message(serverSocket, clientSockfd, DELETE_FILE_COMMAND, "The file could not be removed.", logger);
@@ -263,24 +267,25 @@ bool list_directory(LPTF_Socket *serverSocket, int clientSockfd, string path, st
 }
 
 
-bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirname, string path, string username, Logger *logger) {
+bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder, string username, Logger *logger) {
     fs::path user_root = get_user_root(username);
     fs::path folderpath = user_root;
-    if (!path.empty())
-        folderpath /= path;
+    if (!folder.empty())
+        folderpath /= folder;
     
-    if (!fs::is_directory(folderpath) || (path.size() > 0 && (path.at(0) == '/' || path.at(0) == '\\'))) {
-        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "The folder doesn't exist.", logger);
+    // check parent folder
+    if ((folder.size() > 0 && (folder.at(0) == '/' || folder.at(0) == '\\'))
+        || !is_path_in_folder(folderpath, user_root)) {
+        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Invalid path.", logger);
         return false;
     }
 
-    if (dirname.empty() || !is_path_in_folder(folderpath / dirname, user_root)
-        || (dirname.at(0) == '/' || dirname.at(0) == '\\')) {
-        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Invalid directory name.", logger);
+    if (!fs::is_directory(folderpath.parent_path())) {
+        send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Parent directory doesn't exist.", logger);
         return false;
     }
 
-    if (fs::is_directory(folderpath / dirname)) {
+    if (fs::is_directory(folderpath)) {
         send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Directory already exists.", logger);
         return false;
     }
@@ -288,18 +293,16 @@ bool create_directory(LPTF_Socket *serverSocket, int clientSockfd, string dirnam
     // create directory
 
     ostringstream msg;
-    msg << "Creating directory " << (folderpath / dirname);
+    msg << "Creating directory " << (folderpath);
     log_info(msg, logger);
 
-    if (!fs::create_directory(folderpath / dirname)) {
+    if (!fs::create_directory(folderpath)) {
         send_error_message(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND, "Failed to create directory !", logger);
         return false;
     } else {
         log_info("Directory created", logger);
-        bool status = 1;
-        LPTF_Packet reply = build_reply_packet(CREATE_FOLDER_COMMAND, &status, sizeof(status));
-        serverSocket->send(clientSockfd, reply, 0);
 
+        send_ok_reply(serverSocket, clientSockfd, CREATE_FOLDER_COMMAND);
         return true;
     }
 }
@@ -309,8 +312,18 @@ bool remove_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder
     fs::path user_root = get_user_root(username);
     fs::path folderpath = user_root / folder;
 
+    // if folder is user root, remove all contents
+    if (fs::equivalent(user_root, folderpath)) {
+
+        delete_directory_content(user_root);
+
+        send_ok_reply(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND);
+        return true;
+
+    }
+
     // check if not user root folder
-    if (fs::equivalent(user_root, folderpath) || !is_path_in_folder(folderpath, user_root)
+    if (!is_path_in_folder(folderpath, user_root)
         || (folder.size() > 0 && (folder.at(0) == '/' || folder.at(0) == '\\'))) {
         send_error_message(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND, "Invalid folder.", logger);
         return false;
@@ -331,10 +344,7 @@ bool remove_directory(LPTF_Socket *serverSocket, int clientSockfd, string folder
         send_error_message(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND, "The directory could not be removed !", logger);
         return false;
     } else {
-        bool status = 1;
-        LPTF_Packet reply = build_reply_packet(DELETE_FOLDER_COMMAND, &status, sizeof(status));
-        serverSocket->send(clientSockfd, reply, 0);
-
+        send_ok_reply(serverSocket, clientSockfd, DELETE_FOLDER_COMMAND);
         return true;
     }
 }
@@ -376,9 +386,7 @@ bool rename_directory(LPTF_Socket *serverSocket, int clientSockfd, string newnam
 
         log_info("Directory renamed", logger);
 
-        bool status = 1;
-        LPTF_Packet reply = build_reply_packet(RENAME_FOLDER_COMMAND, &status, sizeof(status));
-        serverSocket->send(clientSockfd, reply, 0);
+        send_ok_reply(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND);
         return true;
     } catch(const fs::filesystem_error &ex) {
         send_error_message(serverSocket, clientSockfd, RENAME_FOLDER_COMMAND, ex.what(), logger);

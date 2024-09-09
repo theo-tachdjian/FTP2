@@ -10,6 +10,8 @@
 #include <map>
 #include <sstream>
 
+#include <utility>
+
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
 #include "../include/LPTF_Net/LPTF_Utils.hpp"
 #include "../include/server_actions.hpp"
@@ -235,13 +237,13 @@ void execute_command(LPTF_Socket *serverSocket, int clientSockfd, LPTF_Packet &r
         
         case CREATE_FOLDER_COMMAND:
         {
-            CREATE_DIR_REQ_PACKET_STRUCT args = get_data_from_create_directory_request_packet(req);
+            string folder = get_path_from_create_directory_request_packet(req);
 
             ostringstream msg;
-            msg << "CREATE_FOLDER_COMMAND: \"" << args.dirname << "\", \"" << args.path << "\"";
+            msg << "CREATE_FOLDER_COMMAND: \"" << folder << "\"";
             log_info(msg, logger);
 
-            create_directory(serverSocket, clientSockfd, args.dirname, args.path, username, logger);
+            create_directory(serverSocket, clientSockfd, folder, username, logger);
             break;
         }
         

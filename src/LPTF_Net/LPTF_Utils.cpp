@@ -97,20 +97,8 @@ LPTF_Packet build_list_directory_request_packet(const string pathname) {
     return build_command_packet(LIST_FILES_COMMAND, pathname);
 }
 
-LPTF_Packet build_create_directory_request_packet(const string dirname, const string path) {
-    uint16_t size = dirname.size()+1 + path.size();
-
-    uint8_t *rawcontent = (uint8_t*)malloc(size);
-
-    if (!rawcontent)
-        throw runtime_error("Memory allocation failed !");
-    
-    memcpy(rawcontent, dirname.c_str(), dirname.size()+1);
-    memcpy(rawcontent + dirname.size()+1, path.c_str(), path.size());
-
-    LPTF_Packet packet(CREATE_FOLDER_COMMAND, rawcontent, size);
-    free(rawcontent);
-    return packet;
+LPTF_Packet build_create_directory_request_packet(const string folder) {
+    return build_command_packet(CREATE_FOLDER_COMMAND, folder);
 }
 
 LPTF_Packet build_remove_directory_request_packet(string folder) {
@@ -281,41 +269,9 @@ string get_path_from_list_directory_request_packet(LPTF_Packet &packet) {
     return get_arg_from_command_packet(packet);
 }
 
-CREATE_DIR_REQ_PACKET_STRUCT get_data_from_create_directory_request_packet(LPTF_Packet &packet) {
-    CREATE_DIR_REQ_PACKET_STRUCT result = {"", ""};
-
+string get_path_from_create_directory_request_packet(LPTF_Packet &packet) {
     if (packet.type() != CREATE_FOLDER_COMMAND) throw runtime_error("Invalid packet (type or length)");
-
-    const char *content = (const char *)packet.get_content();
-
-    // find new name and path args
-    int i = 0;
-    int arg_offset = 0;
-    for (int n = 0; n < 2; n++) {
-        while (i < packet.get_header().length) {
-            if (content[i] == '\0') {
-                if (n == 0)
-                    result.dirname = string(content, i);
-                else
-                    result.path = string(content+arg_offset, i - arg_offset);
-                i++;
-                arg_offset = i;
-                break;
-            } else if (i == packet.get_header().length-1) {
-                if (n == 0)
-                    result.dirname = string(content, i+1);
-                else
-                    result.path = string(content+arg_offset, i+1 - arg_offset);
-                i++;
-                arg_offset = i;
-                break;
-            }
-
-            i++;
-        }
-    }
-
-    return result;
+    return get_arg_from_command_packet(packet);
 }
 
 string get_path_from_remove_directory_request_packet(LPTF_Packet &packet) {

@@ -26,7 +26,7 @@ void print_help() {
     cout << "\t-download <file>" << endl;
     cout << "\t-delete <file>" << endl;
     cout << "\t-list <path>" << endl;
-    cout << "\t-create <foldername> <path>" << endl;
+    cout << "\t-create <folder>" << endl;
     cout << "\t-rm <folder>" << endl;
     cout << "\t-rename <name> <folder>" << endl;
 }
@@ -72,16 +72,16 @@ bool check_command(int argc, char const *argv[]) {
     } else if (strcmp(argv[2], "-create") == 0) {
         if (argc < 4)
             return false;
-        if (argc > 5) {
+        if (argc != 4) {
             cout << "Too much arguments !" << endl;
             return false;
         } else {
             return true;
         }
     } else if (strcmp(argv[2], "-rm") == 0) {
-        if (argc < 4)
+        if (argc < 3)
             return false;
-        if (argc != 4) {
+        if (argc > 4) {
             cout << "Too much arguments !" << endl;
             return false;
         } else {
@@ -260,18 +260,15 @@ int main(int argc, char const *argv[]) {
 
         } else if (strcmp(argv[2], "-create") == 0) {
 
-            string dirname;
-            string path;
-
-            dirname = argv[3];
-
-            if (argc == 5)
-                path = argv[4];
-
-            return !create_directory(&clientSocket, dirname, path);
-        } else if (strcmp(argv[2], "-rm") == 0) {
-
             string folder = argv[3];
+
+            return !create_directory(&clientSocket, folder);
+        } else if (strcmp(argv[2], "-rm") == 0) {
+            
+            string folder = "";     // rm on user root is allowed
+
+            if (argc == 4)
+                folder = argv[3];
 
             return !remove_directory(&clientSocket, folder);
         } else if (strcmp(argv[2], "-rename") == 0) {

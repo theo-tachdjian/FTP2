@@ -12,18 +12,12 @@ namespace fs = std::filesystem;
 
 
 uint32_t get_file_size(string filepath) {
-    streampos begin, end;
-    ifstream f (filepath, ios::binary);
-    begin = f.tellg();
-    f.seekg (0, ios::end);
-    end = f.tellg();
-    f.close();
-    return static_cast<uint32_t>(end-begin);
+    return get_file_size(fs::path(filepath));
 }
 
 
 uint32_t get_file_size(fs::path filepath) {
-    return get_file_size(filepath.generic_string());
+    return static_cast<uint32_t>(fs::file_size(filepath));
 }
 
 
@@ -102,4 +96,10 @@ bool is_path_in_folder(fs::path contained, fs::path container) {
     // compare the relative path for contained and container
     fs::path relative_path = std::filesystem::relative(contained, container);
     return !relative_path.empty() && relative_path.native()[0] != '.';
+}
+
+
+void delete_directory_content(fs::path dir) {
+    for (fs::directory_entry const& dir_entry : fs::directory_iterator(dir))
+        fs::remove_all(dir_entry);
 }

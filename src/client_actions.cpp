@@ -75,7 +75,7 @@ bool download_file(LPTF_Socket *clientSocket, string filename) {
 
             FILE_PART_PACKET_STRUCT data = get_data_from_file_data_packet(pckt);
 
-            cout << "File part Data Len: " << data.len << endl;
+            // cout << "File part Data Len: " << data.len << endl;
 
             outfile.write((const char*)data.data, data.len);
 
@@ -145,6 +145,8 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
         return false;
     }
 
+    cout << "Sending file to server..." << endl;
+
     char buffer[MAX_FILE_PART_BYTES];
 
     ifstream file(targetfile, ios::binary);
@@ -178,7 +180,7 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
             
             if (reply.type() != REPLY_PACKET && reply.type() != ERROR_PACKET) {
                 cerr << "Unexpected packet type!" << endl;
-                reply.print_specs();
+                // reply.print_specs();
                 file.close();
                 return false;
             } else if (reply.type() == ERROR_PACKET) {
@@ -199,6 +201,8 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
         file.close();
         return false;
     }
+
+    cout << "Upload done." << endl;
 
     return true;
 
@@ -229,11 +233,11 @@ bool list_directory(LPTF_Socket *clientSocket, string pathname) {
 }
 
 
-bool create_directory(LPTF_Socket *clientSocket, string dirname, string path) {
+bool create_directory(LPTF_Socket *clientSocket, string folder) {
 
-    cout << "Creating directory " << dirname << " at \"" << path << "\"" << endl;
+    cout << "Creating directory \"" << folder << "\"" << endl;
 
-    LPTF_Packet pckt = build_create_directory_request_packet(dirname, path);
+    LPTF_Packet pckt = build_create_directory_request_packet(folder);
     clientSocket->write(pckt);
 
     // check server reply

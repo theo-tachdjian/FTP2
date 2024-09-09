@@ -20,3 +20,5 @@ void check_server_logs_folder();
 fs::path get_server_logs_folder();
 
 bool is_path_in_folder(fs::path contained, fs::path container);
+
+void delete_directory_content(fs::path dir);

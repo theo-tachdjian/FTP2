@@ -81,8 +81,8 @@ LPTF_Packet LPTF_Socket::recv(int sockfdfrom, int flags) {
 
     LPTF_Packet packet(buffer, sizeof(PACKET_HEADER)+UINT16_MAX);
 
-    cout << "Packet Received:" << endl;
-    packet.print_specs();
+    // cout << "Packet Received:" << endl;
+    // packet.print_specs();
 
     return packet;
 }
@@ -99,8 +99,8 @@ LPTF_Packet LPTF_Socket::read() {
 
     LPTF_Packet packet(buffer, sizeof(PACKET_HEADER)+UINT16_MAX);
 
-    cout << "Packet Read:" << endl;
-    packet.print_specs();
+    // cout << "Packet Read:" << endl;
+    // packet.print_specs();
 
     return packet;
 }

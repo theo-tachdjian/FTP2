@@ -3,19 +3,24 @@
 #include <iostream>
 #include <fstream>
 
+#define LOG_DEFAULT_SIZE_LIMIT 16384
+
 using namespace std;
 
 class Logger {
 
 private:
+    unsigned int size_limit;
+    string filename;
     ofstream log_file;
 
     virtual void log(const string &level, const string &message);
+    virtual void check_purge();
 
 public:
     Logger();
-
     Logger(const string &filename);
+    Logger(const string &filename, unsigned int size_limit);
 
     ~Logger();
 

@@ -9,11 +9,6 @@ typedef struct {
 } FILE_UPLOAD_REQ_PACKET_STRUCT;
 
 typedef struct {
-    string dirname;
-    string path;
-} CREATE_DIR_REQ_PACKET_STRUCT;
-
-typedef struct {
     string newname;
     string path;
 } RENAME_DIR_REQ_PACKET_STRUCT;

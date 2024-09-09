@@ -5,14 +5,24 @@
 #include <ctime>
 #include <sstream>
 
+#include "../include/file_utils.hpp"
+
 using namespace std;
 
 Logger::Logger() {
-    log_file = ofstream("log.txt", ios::app);
+    size_limit = LOG_DEFAULT_SIZE_LIMIT;
+    filename = "log.txt";
+    log_file = ofstream(filename, ios::app);
     if (!log_file.is_open()) throw runtime_error("Could not open log file !");
 }
 
-Logger::Logger(const string &filename) {
+Logger::Logger(const string &filename): filename{ filename } {
+    size_limit = LOG_DEFAULT_SIZE_LIMIT;
+    log_file = ofstream(filename, ios::app);
+    if (!log_file.is_open()) throw runtime_error("Could not open log file !");
+}
+
+Logger::Logger(const string &filename, unsigned int size_limit = LOG_DEFAULT_SIZE_LIMIT): size_limit{ size_limit }, filename{ filename } {
     log_file = ofstream(filename, ios::app);
     if (!log_file.is_open()) throw runtime_error("Could not open log file !");
 }
@@ -21,7 +31,23 @@ Logger::~Logger() {
     log_file.close();
 }
 
+
+void Logger::check_purge() {
+    if (log_file.is_open() && get_file_size(filename) > size_limit) {
+        cout << "Removing log file " << filename << endl;
+
+        log_file.close();
+        fs::remove(filename);
+        log_file = ofstream(filename, ios::app);
+
+        if (!log_file.is_open()) throw runtime_error("Could not open log file !");
+    }
+}
+
+
 void Logger::log(const string &level, const string &message) {
+    check_purge();
+
     time_t now = time(0);
     char timestamp[20];
     strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
