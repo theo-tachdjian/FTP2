@@ -2,10 +2,6 @@
 #include <stdexcept>
 #include <cstring>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
 #include "../include/LPTF_Net/LPTF_Utils.hpp"
@@ -20,7 +16,7 @@ namespace fs = std::filesystem;
 
 void print_help() {
     cout << "Usage:" << endl;
-    cout << "\tlpf <ip>:<port> <command> [args]" << endl;
+    cout << "\tlpf <username>@<ip>:<port> <command> [args]" << endl;
     cout << endl << "Available Commands:" << endl;
     cout << "\t-upload <file> <path>" << endl;
     cout << "\t-download <file>" << endl;
@@ -118,7 +114,7 @@ bool login(LPTF_Socket *clientSocket, string username) {
     pckt = clientSocket->read();
 
     if (pckt.type() == REPLY_PACKET && get_refered_packet_type_from_reply_packet(pckt) == LOGIN_PACKET) {
-        cout << "Enter password: ";
+        cout << get_reply_content_from_reply_packet(pckt);
         string password;
         cin >> password;
         LPTF_Packet password_packet = LPTF_Packet(MESSAGE_PACKET, (void *)password.c_str(), password.size());
@@ -132,7 +128,7 @@ bool login(LPTF_Socket *clientSocket, string username) {
             cout << "Unable to log in: " << get_error_content_from_error_packet(auth_reply) << endl;
         }
     } else if (pckt.type() == MESSAGE_PACKET) {
-        cout << (const char *)pckt.get_content() << endl;
+        cout << (const char *)pckt.get_content();
         string new_password;
         cin >> new_password;
         LPTF_Packet new_password_packet = LPTF_Packet(MESSAGE_PACKET, (void *)new_password.c_str(), new_password.size());

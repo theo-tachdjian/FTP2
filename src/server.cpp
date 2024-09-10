@@ -50,7 +50,7 @@ public:
                         } 
   
                         // Get the next task from the queue 
-                        task = move(tasks_.front()); 
+                        task = std::move(tasks_.front()); 
                         tasks_.pop(); 
                     } 
   
@@ -82,7 +82,7 @@ public:
     { 
         { 
             unique_lock<mutex> lock(queue_mutex_); 
-            tasks_.emplace(move(task)); 
+            tasks_.emplace(std::move(task)); 
         } 
         cv_.notify_one(); 
     } 
@@ -137,7 +137,8 @@ string wait_for_login(LPTF_Socket *serverSocket, int clientSockfd) {
             std::string username((const char *)pckt.get_content(), pckt.get_header().length);
             if (passwords.find(username) != passwords.end()) {
                 // User exists, ask for password
-                LPTF_Packet ask_password_packet = build_message_packet("Enter Password:");
+                string reply_msg = "Enter Password: ";
+                LPTF_Packet ask_password_packet = build_reply_packet(LOGIN_PACKET, (void*)reply_msg.c_str(), reply_msg.size());
                 serverSocket->send(clientSockfd, ask_password_packet, 0);
                 LPTF_Packet password_packet = serverSocket->recv(clientSockfd, 0);
                 std::string password((const char *)password_packet.get_content(), password_packet.get_header().length);
@@ -153,7 +154,7 @@ string wait_for_login(LPTF_Socket *serverSocket, int clientSockfd) {
                 }
             } else {
                 // User doesn't exist, ask for new password
-                LPTF_Packet ask_password_packet = build_message_packet("Create a new Password:");
+                LPTF_Packet ask_password_packet = build_message_packet("Create a new Password: ");
                 serverSocket->send(clientSockfd, ask_password_packet, 0);
                 LPTF_Packet password_packet = serverSocket->recv(clientSockfd, 0);
                 std::string password((const char *)password_packet.get_content(), password_packet.get_header().length);
