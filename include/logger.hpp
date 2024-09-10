@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 
-#define LOG_DEFAULT_SIZE_LIMIT 16384
+#define LOG_DEFAULT_SIZE_LIMIT 1024000  // ~10Mb
 
 using namespace std;
 
