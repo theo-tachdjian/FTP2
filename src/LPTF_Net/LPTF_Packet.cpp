@@ -21,6 +21,7 @@ Builds a packet with the specified PACKET_TYPE, data and data length.
 */
 LPTF_Packet::LPTF_Packet(uint8_t type, void *rawdata, uint16_t datalen) {
     header.type = type;
+    content = nullptr;
 
     if (datalen != 0) {
         content = malloc(datalen);
@@ -39,6 +40,8 @@ LPTF_Packet::LPTF_Packet(uint8_t type, void *rawdata, uint16_t datalen) {
 Builds a packet from the received raw packet data from either LPTF_Socket::recv() or LPTF_Socket::read()
 */
 LPTF_Packet::LPTF_Packet(void *rawpacket, size_t buffmaxsize) {
+    content = nullptr;
+
     if (buffmaxsize < 4)
         throw std::runtime_error("Raw data invalid: buffer is too small !");
 
@@ -54,7 +57,7 @@ LPTF_Packet::LPTF_Packet(void *rawpacket, size_t buffmaxsize) {
 
     header.reserved = data[3];
 
-    if (header.length > 0) {
+    if (header.length != 0) {
         if (buffmaxsize-4 < header.length) {
             throw std::runtime_error("Buffer is too small compared to the packet's expected content size !");
         }

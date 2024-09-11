@@ -321,5 +321,5 @@ RENAME_DIR_REQ_PACKET_STRUCT get_data_from_rename_directory_request_packet(LPTF_
 BINARY_PART_PACKET_STRUCT get_data_from_binary_part_packet(LPTF_Packet &packet) {
     if (packet.type() != BINARY_PART_PACKET) throw runtime_error("Invalid packet (type or length)");
 
-    return {(const char *)packet.get_content(), static_cast<uint16_t>(packet.get_header().length)};
+    return {(const char *)packet.get_content(), packet.get_header().length};
 }
