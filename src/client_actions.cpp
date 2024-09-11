@@ -273,7 +273,8 @@ bool list_tree(LPTF_Socket *clientSocket) {
 
     cout << "Listing user directory tree" << endl;
 
-    LPTF_Packet pckt = build_command_packet(USER_TREE_COMMAND, "");
+    string empty;
+    LPTF_Packet pckt = build_command_packet(USER_TREE_COMMAND, empty);
     clientSocket->write(pckt);
 
     cout << "Start receiving directory tree from server" << endl;
