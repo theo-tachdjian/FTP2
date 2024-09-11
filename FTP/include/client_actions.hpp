@@ -5,7 +5,7 @@
 
 using namespace std;
 
-bool download_file(LPTF_Socket *clientSocket, string filename);
+bool download_file(LPTF_Socket *clientSocket, string outfile, string filename);
 
 bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile);
 
@@ -19,4 +19,4 @@ bool remove_directory(LPTF_Socket *clientSocket, string folder);
 
 bool rename_directory(LPTF_Socket *clientSocket, string newname, string path);
 
-bool list_tree(LPTF_Socket *clientSocket);
+ostringstream list_tree(LPTF_Socket *clientSocket);

@@ -31,7 +31,7 @@ bool wait_for_server_reply(LPTF_Socket *clientSocket) {
 }
 
 
-bool download_file(LPTF_Socket *clientSocket, string filename) {
+bool download_file(LPTF_Socket *clientSocket, string outfilepath, string filename) {
 
     cout << "Downloading file \"" << filename << "\"" << endl;
 
@@ -59,7 +59,7 @@ bool download_file(LPTF_Socket *clientSocket, string filename) {
 
     cout << "Start receiving file from server" << endl;
 
-    ofstream outfile(fs::path(filename).filename(), ios::binary);
+    ofstream outfile(fs::path(outfilepath), ios::binary);
 
     streampos curr_pos = outfile.tellp();
 
@@ -269,7 +269,9 @@ bool rename_directory(LPTF_Socket *clientSocket, string newname, string path) {
 }
 
 
-bool list_tree(LPTF_Socket *clientSocket) {
+ostringstream list_tree(LPTF_Socket *clientSocket) {
+
+    ostringstream out;
 
     cout << "Listing user directory tree" << endl;
 
@@ -290,8 +292,8 @@ bool list_tree(LPTF_Socket *clientSocket) {
 
             BINARY_PART_PACKET_STRUCT data = get_data_from_binary_part_packet(pckt);
 
-            cout.write((const char*)data.data, data.len);
-            cout.flush();
+            out.write((const char*)data.data, data.len);
+            out.flush();
 
             // notify server
             // this is required to not overflow? the socket
@@ -313,5 +315,5 @@ bool list_tree(LPTF_Socket *clientSocket) {
 
     cout << "Done" << endl;
 
-    return true;
+    return out;
 }
