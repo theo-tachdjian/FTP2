@@ -2,14 +2,28 @@
 
 #include <QApplication>
 
+#include "serverauthdialog.h"
+
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
 
-    QString username = QString("Qt");
-    QString password = QString("root");
+    ServerAuthDialog dialog;
+    int retval = dialog.exec();
 
-    FTPClient w (nullptr, "127.0.0.1", 12345, username, password);
+    if (!retval) { return 0; }
+
+    QString ip = dialog.ip;
+    int port = dialog.port;
+    QString username = dialog.username;
+    QString password = dialog.password;
+
+    // QString ip = QString("127.0.0.1");
+    // int port = 12345;
+    // QString username = QString("Qt");
+    // QString password = QString("root");
+
+    FTPClient w (nullptr, ip, port, username, password);
     w.show();
-    return a.exec();
+    return app.exec();
 }

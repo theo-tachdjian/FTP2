@@ -16,12 +16,14 @@
 #include "FTP/include/client_actions.hpp"
 #include <sstream>
 
+#include <map>
+
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
 LpfFTPModel::LpfFTPModel(QObject *parent,
-                         const char * ip,
+                         QString &ip,
                          int port,
                          QString &username,
                          QString &password)
@@ -48,7 +50,7 @@ LPTF_Socket *LpfFTPModel::connect_to_server()
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(ip);
+    serverAddr.sin_addr.s_addr = inet_addr(ip.toStdString().c_str());
     serverAddr.sin_port = htons(port);
 
     try {
@@ -102,12 +104,13 @@ QVariant LpfFTPModel::data(const QModelIndex &index, int role) const
     if (role == Qt::DecorationRole && index.isValid()) {
 
         // if root item
-        if (index.row() == 0 && index.column() == 0) {
+        if (index.row() == 0 && index.column() == 0 && !index.parent().isValid()) {
             return iconProvider->icon(QFileIconProvider::Folder);
         }
 
         // get data to check if it is a folder or a file
         QString data = QStandardItemModel::data(index, Qt::DisplayRole).toString();
+
         if (data.endsWith("/")) {
             return iconProvider->icon(QFileIconProvider::Folder);
         } else {
@@ -127,9 +130,14 @@ QVariant LpfFTPModel::data(const QModelIndex &index, int role) const
     return QStandardItemModel::data(index, role);
 }
 
+bool LpfFTPModel::isRootFolder(const QModelIndex &index)
+{
+    return (index.row() == 0 && index.column() == 0 && !index.parent().isValid()) /* root item */;
+}
+
 bool LpfFTPModel::isFolder(const QModelIndex &index)
 {
-    return (index.row() == 0 && index.column() == 0) /* root item */ || QStandardItemModel::data(index, Qt::DisplayRole).toString().endsWith("/");
+    return this->isRootFolder(index) || QStandardItemModel::data(index, Qt::DisplayRole).toString().endsWith("/");
 }
 
 bool LpfFTPModel::isFile(const QModelIndex &index)
@@ -192,8 +200,6 @@ void LpfFTPModel::downloadFile(const QString &outfile, const QString &filepath)
         if (!socket) { return; }
 
         if (!download_file(socket, outfile.toStdString(), filepath.toStdString())) {
-
-        } else {
             emit onCommandFail("download_file");
         }
     } catch (const std::runtime_error &ex) {
@@ -310,25 +316,79 @@ void LpfFTPModel::queryData()
         return;
     }
 
-    istringstream treestream (rawtree.str());
-
     this->clear();
 
     QStandardItem *root = new QStandardItem(QString("()").insert(1, username));
 
-    QStandardItem *folder = new QStandardItem("MyFolder/");
-    QStandardItem *folder2 = new QStandardItem("My Folder 2/");
-    QStandardItem *folder3 = new QStandardItem("empty/");
-    QStandardItem *file = new QStandardItem("hello.txt");
+    istringstream treestream (rawtree.str());
 
-    QStandardItem *subfolder = new QStandardItem("sub/");
-    QStandardItem *subfolder2 = new QStandardItem("sub2/");
-    QStandardItem *subfile = new QStandardItem("hello2.txt");
+    std::map<std::string, QStandardItem*> items;    // only for matching dirs
+    items[""] = root;
 
-    folder->appendRows({subfolder, subfile});
-    folder2->appendRows({subfolder2});
+    std::string line;
+    while (std::getline(treestream, line))
+    {
+        fs::path itempath (line);
+
+        bool path_leads_to_folder = line.at(line.size()-1) == '/';
+
+        std::string parent_key = "";
+        fs::path::iterator ppath = itempath.begin();
+        fs::path::iterator pend = itempath.end();
+
+        while (ppath != pend && !ppath->empty()) {
+            fs::path curr_path (parent_key);
+            if (parent_key.size() == 0)
+                curr_path += *ppath;
+            else
+                curr_path /= *ppath;
+
+            if (items.find(curr_path.string()) == items.end()) {
+                bool is_file = false;
+                if (!path_leads_to_folder) {
+                    fs::path::iterator nppath = next(ppath);
+                    is_file = nppath == pend;
+                }
+
+                std::string item_name;
+                if (is_file) {
+                    item_name = curr_path.filename().string();
+                } else {
+                    item_name = curr_path.stem().string() + "/";
+                }
+
+                QStandardItem *newitem = new QStandardItem(QString(item_name.c_str()));
+                // append to parent item
+                items[parent_key]->appendRows({newitem});
+
+                // add dir to items
+                if (!is_file)
+                    items[curr_path.string()] = newitem;
+            }
+
+            if (parent_key.size() == 0)
+                parent_key += ppath->string();
+            else
+                parent_key += "/" + ppath->string();
+
+            advance(ppath, 1);
+        }
+
+    }
+
+    // QStandardItem *folder = new QStandardItem("MyFolder/");
+    // QStandardItem *folder2 = new QStandardItem("My Folder 2/");
+    // QStandardItem *folder3 = new QStandardItem("empty/");
+    // QStandardItem *file = new QStandardItem("hello.txt");
+
+    // QStandardItem *subfolder = new QStandardItem("sub/");
+    // QStandardItem *subfolder2 = new QStandardItem("sub2/");
+    // QStandardItem *subfile = new QStandardItem("hello2.txt");
+
+    // folder->appendRows({subfolder, subfile});
+    // folder2->appendRows({subfolder2});
 
     this->invisibleRootItem()->appendRows({root});
 
-    root->appendRows({folder, folder2, folder3, file});
+    // root->appendRows({folder, folder2, folder3, file});
 }

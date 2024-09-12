@@ -294,6 +294,8 @@ ostringstream list_tree(LPTF_Socket *clientSocket) {
 
             out.write((const char*)data.data, data.len);
             out.flush();
+            cout.write((const char*)data.data, data.len);
+            cout.flush();
 
             // notify server
             // this is required to not overflow? the socket

@@ -12,7 +12,7 @@ class FTPClient : public QWidget
 
 public:
     FTPClient(QWidget *parent,
-              const char * ip,
+              QString &ip,
               int port,
               QString &username,
               QString &password);
@@ -27,6 +27,7 @@ public Q_SLOTS:
     void onCreateFolderAction();
     void onDeleteFolderAction();
     void onRenameFolderAction();
+    void onDeleteRootAction();
 
     void queryUserTree();
 
@@ -42,6 +43,7 @@ private:
     QTreeView *user_tree;
     QMenu *fileMenu;
     QMenu *folderMenu;
+    QMenu *rootFolderMenu;
 
     QAction *uploadFileAction;
     QAction *downloadFileAction;
@@ -49,6 +51,8 @@ private:
     QAction *createFolderAction;
     QAction *deleteFolderAction;
     QAction *renameFolderAction;
+
+    QAction *deleteRootAction;
 
     LpfFTPModel *ftp_model;
 };

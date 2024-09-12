@@ -5,9 +5,11 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QApplication>
+#include <Qt>
 
 FTPClient::FTPClient(QWidget *parent,
-                     const char * ip,
+                     QString &ip,
                      int port,
                      QString &username,
                      QString &password)
@@ -17,27 +19,32 @@ FTPClient::FTPClient(QWidget *parent,
 {
     fileMenu = new QMenu(user_tree);
     folderMenu = new QMenu(user_tree);
+    rootFolderMenu = new QMenu(user_tree);
 
-    QAction *uploadFileAction = new QAction("Upload File...", folderMenu);
+    uploadFileAction = new QAction("Upload File...");
     connect(uploadFileAction, SIGNAL(triggered()), this, SLOT(onUploadFileAction()));
 
-    QAction *downloadFileAction = new QAction("Download File", fileMenu);
+    downloadFileAction = new QAction("Download File...");
     connect(downloadFileAction, SIGNAL(triggered()), this, SLOT(onDownloadFileAction()));
 
-    QAction *deleteFileAction = new QAction("Delete File", fileMenu);
+    deleteFileAction = new QAction("Delete File");
     connect(deleteFileAction, SIGNAL(triggered()), this, SLOT(onDeleteFileAction()));
 
-    QAction *createFolderAction = new QAction("Create Folder", folderMenu);
+    createFolderAction = new QAction("Create Directory...");
     connect(createFolderAction, SIGNAL(triggered()), this, SLOT(onCreateFolderAction()));
 
-    QAction *deleteFolderAction = new QAction("Delete Folder", folderMenu);
+    deleteFolderAction = new QAction("Delete Directory");
     connect(deleteFolderAction, SIGNAL(triggered()), this, SLOT(onDeleteFolderAction()));
 
-    QAction *renameFolderAction = new QAction("Rename Folder", folderMenu);
+    renameFolderAction = new QAction("Rename Directory...");
     connect(renameFolderAction, SIGNAL(triggered()), this, SLOT(onRenameFolderAction()));
+
+    deleteRootAction = new QAction("Delete All Content...");
+    connect(deleteRootAction, SIGNAL(triggered()), this, SLOT(onDeleteRootAction()));
 
     fileMenu->addActions({downloadFileAction, deleteFileAction});
     folderMenu->addActions({uploadFileAction, createFolderAction, renameFolderAction, deleteFolderAction});
+    rootFolderMenu->addActions({uploadFileAction, createFolderAction, deleteRootAction});
 
     QVBoxLayout *layout = new QVBoxLayout();
     layout->addWidget(user_tree);
@@ -58,7 +65,10 @@ FTPClient::FTPClient(QWidget *parent,
 
     this->installEventFilter(this); // TODO -> on widget close event for disconnect
 
+    this->setMinimumSize(400, 300);
+
     ftp_model->queryData();
+    user_tree->setExpanded(user_tree->model()->index(0, 0), true);
 }
 
 void FTPClient::onCommandFail(const QString &message)
@@ -68,12 +78,18 @@ void FTPClient::onCommandFail(const QString &message)
 
 void FTPClient::onConnectionError(const QString &error)
 {
+    QApplication::restoreOverrideCursor();
     QMessageBox::critical(this, "Connection Error", error);
+
+    // disable User Tree on error
+    user_tree->setDisabled(true);
 }
 
 void FTPClient::queryUserTree()
 {
+    QApplication::setOverrideCursor(Qt::WaitCursor);
     ftp_model->queryData();
+    QApplication::restoreOverrideCursor();
     user_tree->setExpanded(user_tree->model()->index(0, 0), true);
 }
 
@@ -83,7 +99,10 @@ void FTPClient::onCustomContextMenu(const QPoint &point)
     QModelIndex index = user_tree->indexAt(point);
     if (index.isValid()) {
 
-        if (ftp_model->isFolder(index)) {
+        if (ftp_model->isRootFolder(index)) {
+            qDebug() << "Opening Root Folder menu";
+            rootFolderMenu->exec(user_tree->viewport()->mapToGlobal(point));
+        } else if (ftp_model->isFolder(index)) {
             qDebug() << "Opening Folder menu";
             folderMenu->exec(user_tree->viewport()->mapToGlobal(point));
         } else {
@@ -181,7 +200,7 @@ void FTPClient::onRenameFolderAction()
     qDebug() << "onRenameFolderAction";
     QModelIndex index = user_tree->currentIndex();
 
-    if (index.isValid() && ftp_model->isFolder(index)) {
+    if (index.isValid() && ftp_model->isFolder(index) && !ftp_model->isRootFolder(index)) {
         qDebug() << ftp_model->getFullPath(index);
 
         QString name = QInputDialog::getText(this, "Rename Directory", "Rename To:");
@@ -189,6 +208,27 @@ void FTPClient::onRenameFolderAction()
         QString path = ftp_model->getFullPath(index);
 
         ftp_model->renameFolder(name, path);
+
+        emit onActionPerformed();
+    }
+}
+
+
+void FTPClient::onDeleteRootAction()
+{
+    qDebug() << "onDeleteRootAction";
+    QModelIndex index = user_tree->currentIndex();
+
+    if (index.isValid() && ftp_model->isRootFolder(index)) {
+        qDebug() << ftp_model->getFullPath(index);
+
+        QMessageBox::StandardButton button = QMessageBox::question(this,
+                                                                   QString("Delete All Content ?"),
+                                                                   QString("Are you sure you want to delete everything in your User folder ?"));
+
+        if (button != QMessageBox::Yes) { return; }
+
+        ftp_model->deleteFolder(ftp_model->getFullPath(index));
 
         emit onActionPerformed();
     }

@@ -12,7 +12,7 @@ class LpfFTPModel : public QStandardItemModel
     Q_OBJECT
 public:
     LpfFTPModel(QObject *parent,
-                const char * ip,
+                QString &ip,
                 int port,
                 QString &username,
                 QString &password);
@@ -21,6 +21,7 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
+    bool isRootFolder(const QModelIndex &index);
     bool isFolder(const QModelIndex &index);
     bool isFile(const QModelIndex &index);
     QString getFullPath(const QModelIndex &index);
@@ -42,7 +43,7 @@ signals:
 private:
     QFileIconProvider *iconProvider;
 
-    const char * ip;
+    QString &ip;
     int port;
     QString &username;
     QString &password;

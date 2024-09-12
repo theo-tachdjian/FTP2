@@ -26,6 +26,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         lpfftpmodel.h lpfftpmodel.cpp
         FTP/src/client_actions.cpp  FTP/src/file_utils.cpp
         FTP/include/LPTF_Net/LPTF_Packet.hpp FTP/include/LPTF_Net/LPTF_Socket.hpp FTP/include/LPTF_Net/LPTF_Structs.hpp FTP/include/LPTF_Net/LPTF_Utils.hpp FTP/include/client_actions.hpp FTP/include/file_utils.hpp   FTP/src/LPTF_Net/LPTF_Packet.cpp FTP/src/LPTF_Net/LPTF_Socket.cpp FTP/src/LPTF_Net/LPTF_Utils.cpp  FTP/src/client_actions.cpp FTP/src/file_utils.cpp
+        serverauthdialog.h serverauthdialog.cpp
 
     )
 # Define target properties for Android with Qt 6 as:
