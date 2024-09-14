@@ -26,12 +26,12 @@ public:
     bool isFile(const QModelIndex &index);
     QString getFullPath(const QModelIndex &index);
 
-    void uploadFile(const QString &file, const QString &path);
+    void uploadFile(const QString &file, const QModelIndex &targetdir_index);
     void downloadFile(const QString &outfile, const QString &path);
-    void deleteFile(const QString &filepath);
-    void createFolder(const QString &name, const QString &path);
-    void deleteFolder(const QString &path);
-    void renameFolder(const QString &name, const QString &path);
+    void deleteFile(const QModelIndex &file_index);
+    void createFolder(const QString &name, const QModelIndex &parent_dir_index);
+    void deleteFolder(const QModelIndex &dir_index);
+    void renameFolder(const QString &name, const QModelIndex &dir_index);
 
 public Q_SLOTS:
     void queryData();

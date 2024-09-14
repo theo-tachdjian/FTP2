@@ -165,8 +165,15 @@ QString LpfFTPModel::getFullPath(const QModelIndex &index)
 }
 
 
-void LpfFTPModel::uploadFile(const QString &file, const QString &targetdir)
+void LpfFTPModel::uploadFile(const QString &file, const QModelIndex &targetdir_index)
 {
+    if (!targetdir_index.isValid() || !this->isFolder(targetdir_index)) {
+        emit onCommandFail("Selected item is not a folder !");
+        return;
+    }
+
+    QString targetdir = this->getFullPath(targetdir_index);
+
     fs::path targetfile (targetdir.toStdString());
     targetfile /= fs::path(file.toStdString()).filename();
 
@@ -180,7 +187,25 @@ void LpfFTPModel::uploadFile(const QString &file, const QString &targetdir)
         if (!socket) { return; }
 
         if (upload_file(socket, targetfile.string(), file.toStdString())) {
-            // FIXME update tree localy without querying data
+            // update tree localy without querying data
+
+            QString file_item_name = QString(targetfile.filename().string().c_str());
+
+            QStandardItem *diritem = this->itemFromIndex(targetdir_index);
+
+            QList<QStandardItem*> items = findItems(file_item_name, Qt::MatchFlags(Qt::MatchExactly|Qt::MatchRecursive));
+            // check if file item already exists
+            for (QStandardItem *it : items) {
+                if (it->parent() == diritem) {
+                    return;
+                }
+            }
+
+            // if not create it
+            QStandardItem *newfileitem = new QStandardItem(file_item_name);
+            diritem->appendRows({newfileitem});
+            emit layoutChanged({targetdir_index});
+
         } else {
             emit onCommandFail("upload_file");
         }
@@ -209,8 +234,15 @@ void LpfFTPModel::downloadFile(const QString &outfile, const QString &filepath)
     }
 }
 
-void LpfFTPModel::deleteFile(const QString &filepath)
+void LpfFTPModel::deleteFile(const QModelIndex &file_index)
 {
+    if (!file_index.isValid() || !this->isFile(file_index)) {
+        emit onCommandFail("Selected item is not a file !");
+        return;
+    }
+
+    QString filepath = this->getFullPath(file_index);
+
     LPTF_Socket *socket = nullptr;
 
     try {
@@ -218,7 +250,11 @@ void LpfFTPModel::deleteFile(const QString &filepath)
         if (!socket) { return; }
 
         if (delete_file(socket, filepath.toStdString())) {
-            // FIXME update tree localy without querying data
+            // update tree localy without querying data
+
+            QStandardItem *parent_dir_item = this->itemFromIndex(file_index.parent());
+            parent_dir_item->removeRow(file_index.row());
+            emit layoutChanged({parent_dir_item->index()});
         } else {
             emit onCommandFail("filepath");
         }
@@ -229,21 +265,31 @@ void LpfFTPModel::deleteFile(const QString &filepath)
     }
 }
 
-void LpfFTPModel::createFolder(const QString &name, const QString &path)
+void LpfFTPModel::createFolder(const QString &name, const QModelIndex &parent_dir_index)
 {
+    if (!parent_dir_index.isValid() || !this->isFolder(parent_dir_index)) {
+        emit onCommandFail("Selected item is not a folder !");
+        return;
+    }
+
     LPTF_Socket *socket = nullptr;
 
     try {
         socket = connect_to_server();
         if (!socket) { return; }
 
-        QString filepath = path;
+        QString filepath = this->getFullPath(parent_dir_index);
         if(!filepath.isEmpty())
             filepath.append("/");
         filepath.append(name);
 
         if (create_directory(socket, filepath.toStdString())) {
-            // FIXME update tree localy without querying data
+            // update tree localy without querying data
+
+            QStandardItem *parent_dir_item = this->itemFromIndex(parent_dir_index);
+            QStandardItem *newdiritem = new QStandardItem(name + "/");
+            parent_dir_item->appendRows({newdiritem});
+            emit layoutChanged({parent_dir_index});
         } else {
             emit onCommandFail("create_directory");
         }
@@ -254,8 +300,15 @@ void LpfFTPModel::createFolder(const QString &name, const QString &path)
     }
 }
 
-void LpfFTPModel::deleteFolder(const QString &path)
+void LpfFTPModel::deleteFolder(const QModelIndex &dir_index)
 {
+    if (!dir_index.isValid() || !this->isFolder(dir_index)) {
+        emit onCommandFail("Selected item is not a folder !");
+        return;
+    }
+
+    QString path = this->getFullPath(dir_index);
+
     LPTF_Socket *socket = nullptr;
 
     try {
@@ -263,7 +316,19 @@ void LpfFTPModel::deleteFolder(const QString &path)
         if (!socket) { return; }
 
         if (remove_directory(socket, path.toStdString())) {
-            // FIXME update tree localy without querying data
+            // update tree localy without querying data
+
+            if (!this->isRootFolder(dir_index)) {
+                QStandardItem *dir_item = this->itemFromIndex(dir_index);
+                QModelIndex parent_dir_index = dir_item->parent()->index();
+                this->removeRow(dir_index.row(), parent_dir_index);
+                emit layoutChanged({parent_dir_index});
+            } else {
+                this->clear();
+                QStandardItem *root = new QStandardItem(QString("()").insert(1, username));
+                this->invisibleRootItem()->appendRows({root});
+                emit layoutChanged({this->invisibleRootItem()->index()});
+            }
         } else {
             emit onCommandFail("remove_directory");
         }
@@ -274,8 +339,18 @@ void LpfFTPModel::deleteFolder(const QString &path)
     }
 }
 
-void LpfFTPModel::renameFolder(const QString &name, const QString &path)
+void LpfFTPModel::renameFolder(const QString &name, const QModelIndex &dir_index)
 {
+    if (!dir_index.isValid() || !this->isFolder(dir_index)) {
+        emit onCommandFail("Selected item is not a folder !");
+        return;
+    } else if (this->isRootFolder(dir_index)) {
+        emit onCommandFail("Cannot rename the root folder !");
+        return;
+    }
+
+    QString path = this->getFullPath(dir_index);
+
     LPTF_Socket *socket = nullptr;
 
     try {
@@ -283,7 +358,11 @@ void LpfFTPModel::renameFolder(const QString &name, const QString &path)
         if (!socket) { return; }
 
         if (rename_directory(socket, name.toStdString(), path.toStdString())) {
-            // FIXME update tree localy without querying data
+            // update tree localy without querying data
+
+            QStandardItem *dir_item = this->itemFromIndex(dir_index);
+            dir_item->setText(name + "/");
+            emit layoutChanged({dir_index});
         } else {
             emit onCommandFail("rename_directory");
         }
@@ -376,19 +455,5 @@ void LpfFTPModel::queryData()
 
     }
 
-    // QStandardItem *folder = new QStandardItem("MyFolder/");
-    // QStandardItem *folder2 = new QStandardItem("My Folder 2/");
-    // QStandardItem *folder3 = new QStandardItem("empty/");
-    // QStandardItem *file = new QStandardItem("hello.txt");
-
-    // QStandardItem *subfolder = new QStandardItem("sub/");
-    // QStandardItem *subfolder2 = new QStandardItem("sub2/");
-    // QStandardItem *subfile = new QStandardItem("hello2.txt");
-
-    // folder->appendRows({subfolder, subfile});
-    // folder2->appendRows({subfolder2});
-
     this->invisibleRootItem()->appendRows({root});
-
-    // root->appendRows({folder, folder2, folder3, file});
 }

@@ -34,10 +34,6 @@ public Q_SLOTS:
     void onCommandFail(const QString &message);
     void onConnectionError(const QString &error);
 
-signals:
-    // used when an action completed to query the user tree
-    void onActionPerformed();
-
 
 private:
     QTreeView *user_tree;

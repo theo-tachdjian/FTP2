@@ -59,7 +59,7 @@ FTPClient::FTPClient(QWidget *parent,
 
     this->setLayout(layout);
 
-    connect(this, SIGNAL(onActionPerformed()), this, SLOT(queryUserTree()));
+    // connect(this, SIGNAL(onActionPerformed()), this, SLOT(queryUserTree()));
     connect(ftp_model, SIGNAL(onConnectionError(QString)), this, SLOT(onConnectionError(QString)));
     connect(ftp_model, SIGNAL(onCommandFail(QString)), this, SLOT(onCommandFail(QString)));
 
@@ -117,18 +117,10 @@ void FTPClient::onUploadFileAction()
     qDebug() << "onUploadFileAction";
     QModelIndex index = user_tree->currentIndex();
 
-    if (index.isValid() && ftp_model->isFolder(index)) {
-        qDebug() << ftp_model->getFullPath(index);
+    QString file = QFileDialog::getOpenFileName(this, "Select File to Upload");
+    if (file.isEmpty()) { return ; }
 
-        QString file = QFileDialog::getOpenFileName(this, "Select File to Upload");
-        if (file.isEmpty()) { return ; }
-
-        QString path = ftp_model->getFullPath(index);
-
-        ftp_model->uploadFile(file, path);
-
-        emit onActionPerformed();
-    }
+    ftp_model->uploadFile(file, index);
 }
 
 void FTPClient::onDownloadFileAction()
@@ -144,8 +136,6 @@ void FTPClient::onDownloadFileAction()
         QString fpath = ftp_model->getFullPath(index);
 
         ftp_model->downloadFile(outfile, fpath);
-
-        emit onActionPerformed();
     }
 }
 
@@ -154,13 +144,7 @@ void FTPClient::onDeleteFileAction()
     qDebug() << "onDeleteFileAction";
     QModelIndex index = user_tree->currentIndex();
 
-    if (index.isValid() && ftp_model->isFile(index)) {
-        qDebug() << ftp_model->getFullPath(index);
-
-        ftp_model->deleteFile(ftp_model->getFullPath(index));
-
-        emit onActionPerformed();
-    }
+    ftp_model->deleteFile(index);
 }
 
 void FTPClient::onCreateFolderAction()
@@ -168,17 +152,10 @@ void FTPClient::onCreateFolderAction()
     qDebug() << "onCreateFolderAction";
     QModelIndex index = user_tree->currentIndex();
 
-    if (index.isValid() && ftp_model->isFolder(index)) {
-        qDebug() << ftp_model->getFullPath(index);
+    QString name = QInputDialog::getText(this, "Create Directory", "Name:");
+    if (name.isEmpty()) { return; };
 
-        QString name = QInputDialog::getText(this, "Create Directory", "Name:");
-        if (name.isEmpty()) { return; };
-        QString path = ftp_model->getFullPath(index);
-
-        ftp_model->createFolder(name, path);
-
-        emit onActionPerformed();
-    }
+    ftp_model->createFolder(name, index);
 }
 
 void FTPClient::onDeleteFolderAction()
@@ -186,13 +163,7 @@ void FTPClient::onDeleteFolderAction()
     qDebug() << "onDeleteFolderAction";
     QModelIndex index = user_tree->currentIndex();
 
-    if (index.isValid() && ftp_model->isFolder(index)) {
-        qDebug() << ftp_model->getFullPath(index);
-
-        ftp_model->deleteFolder(ftp_model->getFullPath(index));
-
-        emit onActionPerformed();
-    }
+    ftp_model->deleteFolder(index);
 }
 
 void FTPClient::onRenameFolderAction()
@@ -200,17 +171,10 @@ void FTPClient::onRenameFolderAction()
     qDebug() << "onRenameFolderAction";
     QModelIndex index = user_tree->currentIndex();
 
-    if (index.isValid() && ftp_model->isFolder(index) && !ftp_model->isRootFolder(index)) {
-        qDebug() << ftp_model->getFullPath(index);
+    QString name = QInputDialog::getText(this, "Rename Directory", "Rename To:");
+    if (name.isEmpty()) { return; };
 
-        QString name = QInputDialog::getText(this, "Rename Directory", "Rename To:");
-        if (name.isEmpty()) { return; };
-        QString path = ftp_model->getFullPath(index);
-
-        ftp_model->renameFolder(name, path);
-
-        emit onActionPerformed();
-    }
+    ftp_model->renameFolder(name, index);
 }
 
 
@@ -228,9 +192,7 @@ void FTPClient::onDeleteRootAction()
 
         if (button != QMessageBox::Yes) { return; }
 
-        ftp_model->deleteFolder(ftp_model->getFullPath(index));
-
-        emit onActionPerformed();
+        ftp_model->deleteFolder(index);
     }
 }
 
