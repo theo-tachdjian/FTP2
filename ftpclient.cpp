@@ -7,6 +7,19 @@
 #include <QInputDialog>
 #include <QApplication>
 #include <Qt>
+#include <QPushButton>
+
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
+#include <QFileInfo>
+
+#include <QPoint>
+#include <QPointF>
+
+#include "serverauthdialog.h"
 
 FTPClient::FTPClient(QWidget *parent,
                      QString &ip,
@@ -47,6 +60,17 @@ FTPClient::FTPClient(QWidget *parent,
     rootFolderMenu->addActions({uploadFileAction, createFolderAction, deleteRootAction});
 
     QVBoxLayout *layout = new QVBoxLayout();
+
+    QPushButton *refresh_btn = new QPushButton("Refresh");
+    connect(refresh_btn, SIGNAL(clicked()), this, SLOT(queryUserTree()));
+    QPushButton *change_connection_btn = new QPushButton("Change Connection...");
+    connect(change_connection_btn, SIGNAL(clicked()), this, SLOT(askChangeConnection()));
+
+    QHBoxLayout *btn_layout = new QHBoxLayout();
+    btn_layout->addWidget(refresh_btn, 0, Qt::AlignCenter);
+    btn_layout->addWidget(change_connection_btn, 0, Qt::AlignCenter);
+    layout->addLayout(btn_layout);
+
     layout->addWidget(user_tree);
 
     user_tree->setHeaderHidden(true);
@@ -63,13 +87,71 @@ FTPClient::FTPClient(QWidget *parent,
     connect(ftp_model, SIGNAL(onConnectionError(QString)), this, SLOT(onConnectionError(QString)));
     connect(ftp_model, SIGNAL(onCommandFail(QString)), this, SLOT(onCommandFail(QString)));
 
-    this->installEventFilter(this); // TODO -> on widget close event for disconnect
+    // this->installEventFilter(this); // TODO -> on widget close event for disconnect
 
     this->setMinimumSize(400, 300);
+
+    // enable drag and drop for file upload
+    this->setAcceptDrops(true);
 
     ftp_model->queryData();
     user_tree->setExpanded(user_tree->model()->index(0, 0), true);
 }
+
+
+void FTPClient::dragEnterEvent(QDragEnterEvent *event)
+{
+    qDebug() << "dragEnterEvent";
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void FTPClient::dragMoveEvent(QDragMoveEvent *event)
+{
+    qDebug() << "dragMoveEvent";
+    QPoint pos = event->position().toPoint();
+    qDebug() << "Ev. X: " << pos.x() << ", Ev. Y: " << pos.y();
+    QPoint convPos = this->user_tree->mapFromParent(pos);
+    QModelIndex index = this->user_tree->indexAt(convPos);
+    qDebug() << "Conv. X: " << convPos.x() << ", Conv. Y: " << convPos.y() << " Index: " << index.isValid();
+
+    if (this->ftp_model->isFolder(index)) {
+        qDebug() << "Valid: \"" << this->ftp_model->getFullPath(index) << "\"";
+        event->acceptProposedAction();
+    } else {
+        qDebug() << "Invalid";
+        event->ignore();
+    }
+}
+
+void FTPClient::dropEvent(QDropEvent *event)
+{
+    qDebug() << "dropEvent";
+    const QMimeData* mimeData = event->mimeData();
+
+    if (mimeData->hasUrls()) {
+        QList<QUrl> urlList = mimeData->urls();
+
+        // send files
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        for (int i = 0; i < urlList.size(); i++) {
+            QUrl url = urlList.at(i);
+
+            QFileInfo finfo (url.toLocalFile());
+
+            if (finfo.exists() && finfo.isFile()) {
+                QModelIndex index = this->user_tree->indexAt(this->user_tree->mapFromParent(event->position().toPoint()));
+
+                if (!ftp_model->uploadFile(url.toLocalFile(), index)) {
+                    break;
+                }
+            }
+        }
+        QApplication::restoreOverrideCursor();
+    }
+}
+
 
 void FTPClient::onCommandFail(const QString &message)
 {
@@ -111,6 +193,23 @@ void FTPClient::onCustomContextMenu(const QPoint &point)
         }
     }
 }
+
+
+void FTPClient::askChangeConnection() {
+    ServerAuthDialog dialog;
+    int retval = dialog.exec();
+
+    if (!retval) { return; }
+
+    // change model
+    LpfFTPModel *newmodel = new LpfFTPModel(nullptr, dialog.ip, dialog.port, dialog.username, dialog.password);
+    this->user_tree->setModel(newmodel);
+    delete this->ftp_model;
+    this->ftp_model = newmodel;
+
+    this->queryUserTree();
+}
+
 
 void FTPClient::onUploadFileAction()
 {

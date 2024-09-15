@@ -165,11 +165,11 @@ QString LpfFTPModel::getFullPath(const QModelIndex &index)
 }
 
 
-void LpfFTPModel::uploadFile(const QString &file, const QModelIndex &targetdir_index)
+bool LpfFTPModel::uploadFile(const QString &file, const QModelIndex &targetdir_index)
 {
     if (!targetdir_index.isValid() || !this->isFolder(targetdir_index)) {
         emit onCommandFail("Selected item is not a folder !");
-        return;
+        return false;
     }
 
     QString targetdir = this->getFullPath(targetdir_index);
@@ -184,7 +184,7 @@ void LpfFTPModel::uploadFile(const QString &file, const QModelIndex &targetdir_i
 
     try {
         socket = connect_to_server();
-        if (!socket) { return; }
+        if (!socket) { return false; }
 
         if (upload_file(socket, targetfile.string(), file.toStdString())) {
             // update tree localy without querying data
@@ -197,7 +197,7 @@ void LpfFTPModel::uploadFile(const QString &file, const QModelIndex &targetdir_i
             // check if file item already exists
             for (QStandardItem *it : items) {
                 if (it->parent() == diritem) {
-                    return;
+                    return true;
                 }
             }
 
@@ -205,40 +205,52 @@ void LpfFTPModel::uploadFile(const QString &file, const QModelIndex &targetdir_i
             QStandardItem *newfileitem = new QStandardItem(file_item_name);
             diritem->appendRows({newfileitem});
             emit layoutChanged({targetdir_index});
+            return true;
 
         } else {
-            emit onCommandFail("upload_file");
+            QString error = QString("Unable to upload file \"");
+            error.append(file);
+            error.append("\" at \"");
+            error.append(targetfile.string().c_str());
+            error.append("\" !");
+            emit onCommandFail(error);
         }
     } catch (const std::runtime_error &ex) {
         if (socket)
             delete socket;
         emit onConnectionError(ex.what());
     }
+
+    return false;
 }
 
-void LpfFTPModel::downloadFile(const QString &outfile, const QString &filepath)
+bool LpfFTPModel::downloadFile(const QString &outfile, const QString &filepath)
 {
     LPTF_Socket *socket = nullptr;
 
     try {
         socket = connect_to_server();
-        if (!socket) { return; }
+        if (!socket) { return false; }
 
         if (!download_file(socket, outfile.toStdString(), filepath.toStdString())) {
-            emit onCommandFail("download_file");
+            emit onCommandFail("Unable to download file !");
+        } else {
+            return true;
         }
     } catch (const std::runtime_error &ex) {
         if (socket)
             delete socket;
         emit onConnectionError(ex.what());
     }
+
+    return false;
 }
 
-void LpfFTPModel::deleteFile(const QModelIndex &file_index)
+bool LpfFTPModel::deleteFile(const QModelIndex &file_index)
 {
     if (!file_index.isValid() || !this->isFile(file_index)) {
         emit onCommandFail("Selected item is not a file !");
-        return;
+        return false;
     }
 
     QString filepath = this->getFullPath(file_index);
@@ -247,7 +259,7 @@ void LpfFTPModel::deleteFile(const QModelIndex &file_index)
 
     try {
         socket = connect_to_server();
-        if (!socket) { return; }
+        if (!socket) { return false; }
 
         if (delete_file(socket, filepath.toStdString())) {
             // update tree localy without querying data
@@ -255,6 +267,7 @@ void LpfFTPModel::deleteFile(const QModelIndex &file_index)
             QStandardItem *parent_dir_item = this->itemFromIndex(file_index.parent());
             parent_dir_item->removeRow(file_index.row());
             emit layoutChanged({parent_dir_item->index()});
+            return true;
         } else {
             emit onCommandFail("filepath");
         }
@@ -263,20 +276,22 @@ void LpfFTPModel::deleteFile(const QModelIndex &file_index)
             delete socket;
         emit onConnectionError(ex.what());
     }
+
+    return false;
 }
 
-void LpfFTPModel::createFolder(const QString &name, const QModelIndex &parent_dir_index)
+bool LpfFTPModel::createFolder(const QString &name, const QModelIndex &parent_dir_index)
 {
     if (!parent_dir_index.isValid() || !this->isFolder(parent_dir_index)) {
         emit onCommandFail("Selected item is not a folder !");
-        return;
+        return false;
     }
 
     LPTF_Socket *socket = nullptr;
 
     try {
         socket = connect_to_server();
-        if (!socket) { return; }
+        if (!socket) { return false; }
 
         QString filepath = this->getFullPath(parent_dir_index);
         if(!filepath.isEmpty())
@@ -290,6 +305,7 @@ void LpfFTPModel::createFolder(const QString &name, const QModelIndex &parent_di
             QStandardItem *newdiritem = new QStandardItem(name + "/");
             parent_dir_item->appendRows({newdiritem});
             emit layoutChanged({parent_dir_index});
+            return true;
         } else {
             emit onCommandFail("create_directory");
         }
@@ -298,13 +314,15 @@ void LpfFTPModel::createFolder(const QString &name, const QModelIndex &parent_di
             delete socket;
         emit onConnectionError(ex.what());
     }
+
+    return false;
 }
 
-void LpfFTPModel::deleteFolder(const QModelIndex &dir_index)
+bool LpfFTPModel::deleteFolder(const QModelIndex &dir_index)
 {
     if (!dir_index.isValid() || !this->isFolder(dir_index)) {
         emit onCommandFail("Selected item is not a folder !");
-        return;
+        return false;
     }
 
     QString path = this->getFullPath(dir_index);
@@ -313,7 +331,7 @@ void LpfFTPModel::deleteFolder(const QModelIndex &dir_index)
 
     try {
         socket = connect_to_server();
-        if (!socket) { return; }
+        if (!socket) { return false; }
 
         if (remove_directory(socket, path.toStdString())) {
             // update tree localy without querying data
@@ -323,6 +341,7 @@ void LpfFTPModel::deleteFolder(const QModelIndex &dir_index)
                 QModelIndex parent_dir_index = dir_item->parent()->index();
                 this->removeRow(dir_index.row(), parent_dir_index);
                 emit layoutChanged({parent_dir_index});
+                return true;
             } else {
                 this->clear();
                 QStandardItem *root = new QStandardItem(QString("()").insert(1, username));
@@ -337,16 +356,18 @@ void LpfFTPModel::deleteFolder(const QModelIndex &dir_index)
             delete socket;
         emit onConnectionError(ex.what());
     }
+
+    return false;
 }
 
-void LpfFTPModel::renameFolder(const QString &name, const QModelIndex &dir_index)
+bool LpfFTPModel::renameFolder(const QString &name, const QModelIndex &dir_index)
 {
     if (!dir_index.isValid() || !this->isFolder(dir_index)) {
         emit onCommandFail("Selected item is not a folder !");
-        return;
+        return false;
     } else if (this->isRootFolder(dir_index)) {
         emit onCommandFail("Cannot rename the root folder !");
-        return;
+        return false;
     }
 
     QString path = this->getFullPath(dir_index);
@@ -355,7 +376,7 @@ void LpfFTPModel::renameFolder(const QString &name, const QModelIndex &dir_index
 
     try {
         socket = connect_to_server();
-        if (!socket) { return; }
+        if (!socket) { return false; }
 
         if (rename_directory(socket, name.toStdString(), path.toStdString())) {
             // update tree localy without querying data
@@ -363,6 +384,7 @@ void LpfFTPModel::renameFolder(const QString &name, const QModelIndex &dir_index
             QStandardItem *dir_item = this->itemFromIndex(dir_index);
             dir_item->setText(name + "/");
             emit layoutChanged({dir_index});
+            return true;
         } else {
             emit onCommandFail("rename_directory");
         }
@@ -371,6 +393,8 @@ void LpfFTPModel::renameFolder(const QString &name, const QModelIndex &dir_index
             delete socket;
         emit onConnectionError(ex.what());
     }
+
+    return false;
 }
 
 

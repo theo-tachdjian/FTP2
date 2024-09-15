@@ -26,12 +26,12 @@ public:
     bool isFile(const QModelIndex &index);
     QString getFullPath(const QModelIndex &index);
 
-    void uploadFile(const QString &file, const QModelIndex &targetdir_index);
-    void downloadFile(const QString &outfile, const QString &path);
-    void deleteFile(const QModelIndex &file_index);
-    void createFolder(const QString &name, const QModelIndex &parent_dir_index);
-    void deleteFolder(const QModelIndex &dir_index);
-    void renameFolder(const QString &name, const QModelIndex &dir_index);
+    bool uploadFile(const QString &file, const QModelIndex &targetdir_index);
+    bool downloadFile(const QString &outfile, const QString &path);
+    bool deleteFile(const QModelIndex &file_index);
+    bool createFolder(const QString &name, const QModelIndex &parent_dir_index);
+    bool deleteFolder(const QModelIndex &dir_index);
+    bool renameFolder(const QString &name, const QModelIndex &dir_index);
 
 public Q_SLOTS:
     void queryData();
@@ -43,10 +43,10 @@ signals:
 private:
     QFileIconProvider *iconProvider;
 
-    QString &ip;
+    QString ip;
     int port;
-    QString &username;
-    QString &password;
+    QString username;
+    QString password;
 
     LPTF_Socket *connect_to_server();
     bool login(LPTF_Socket *clientSocket);

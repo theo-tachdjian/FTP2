@@ -34,6 +34,12 @@ public Q_SLOTS:
     void onCommandFail(const QString &message);
     void onConnectionError(const QString &error);
 
+    void askChangeConnection();
+
+    // drag n drop related
+    virtual void dragEnterEvent(QDragEnterEvent *event);
+    virtual void dragMoveEvent(QDragMoveEvent *event);
+    virtual void dropEvent(QDropEvent *event);
 
 private:
     QTreeView *user_tree;
