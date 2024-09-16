@@ -1,6 +1,7 @@
 #include "../include/LPTF_Net/LPTF_Socket.hpp"
 #include "../include/LPTF_Net/LPTF_Packet.hpp"
 #include "../include/LPTF_Net/LPTF_Utils.hpp"
+#include "../include/client_actions.hpp"
 #include "../include/file_utils.hpp"
 
 #include <iostream>
@@ -13,25 +14,26 @@ using namespace std;
 namespace fs = std::filesystem;
 
 
-// check server reply
-// return true if packet is a REPLY packet for a Command Packet, otherwise false.
-bool wait_for_server_reply(LPTF_Socket *clientSocket) {
+ACTION_STATUS wait_for_server_reply(LPTF_Socket *clientSocket) {
     LPTF_Packet reply = clientSocket->read();
     
     if (reply.type() == REPLY_PACKET && is_command_packet(get_refered_packet_type_from_reply_packet(reply))) {
-        cout << get_reply_content_from_reply_packet(reply) << endl;
-        return true;
+        return {true, get_reply_content_from_reply_packet(reply)};
+        // cout << get_reply_content_from_reply_packet(reply) << endl;
+        // return true;
     } else if (reply.type() == ERROR_PACKET) {
-        cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
-        return false;
+        return {false, get_error_content_from_error_packet(reply)};
+        // cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
+        // return false;
     } else {
-        cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
-        return false;
+        return {false, string("Unexpected reply from server !")};
+        // cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
+        // return false;
     }
 }
 
 
-bool download_file(LPTF_Socket *clientSocket, string outfilepath, string filename) {
+ACTION_STATUS download_file(LPTF_Socket *clientSocket, string outfilepath, string filename) {
 
     cout << "Downloading file \"" << filename << "\"" << endl;
 
@@ -50,11 +52,13 @@ bool download_file(LPTF_Socket *clientSocket, string outfilepath, string filenam
         cout << "File size: " << filesize << endl;
 
     } else if (reply.type() == ERROR_PACKET) {
-        cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
-        return false;
+        return {false, get_error_content_from_error_packet(reply)};
+        // cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
+        // return false;
     } else {
-        cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
-        return false;
+        return {false, string("Unexpected reply from server !")};
+        // cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
+        // return false;
     }
 
     cout << "Start receiving file from server" << endl;
@@ -99,24 +103,26 @@ bool download_file(LPTF_Socket *clientSocket, string outfilepath, string filenam
     }
 
     if (curr_pos != filesize) {
-        cout << "File download encountered an error (file size and intended file size don't match)." << endl;
+        string msg ("File download encountered an error ! (file size and intended file size don't match)");
+        cout << msg << endl;
         if (fs::exists(filename)) {
             cout << "Removing file " << filename << ".";
             fs::remove(filename);
         }
-        return false;
+        return {false, msg};
     } else {
         cout << "File download done. Curr. Pos: " << curr_pos << ", Filesize: " << filesize << endl;
-        return true;
+        return {true, string()};
     }
 }
 
 
-bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) {
+ACTION_STATUS upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) {
     
     if (!fs::is_regular_file(targetfile)) {
-        cout << "File \"" << targetfile << "\" doesn't exist !" << endl;
-        return false;
+        return {false, string("File \"") + targetfile + "\" doesn't exist !"};
+        // cout << "File \"" << targetfile << "\" doesn't exist !" << endl;
+        // return false;
     }
 
     uint32_t filesize = get_file_size(targetfile);
@@ -134,15 +140,16 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
        cout << "Server reply: " << msg << endl;
 
        if (strcmp(msg.c_str(), FILE_TRANSFER_REP_OK) != 0) {
-            return false;
+           return {false, msg};
        }
 
     } else if (reply.type() == ERROR_PACKET) {
-        cout << "Error reply from server (" << get_error_content_from_error_packet(reply) << ")" << endl;
-        return false;
+        string error = get_error_content_from_error_packet(reply);
+        cout << "Error reply from server (" << error << ")" << endl;
+        return {false, error};
     } else {
         cout << "Unexpected reply from server (" << reply.type() << ")" << endl;
-        return false;
+        return {false, string("Unexpected reply from server !")};
     }
 
     cout << "Sending file to server..." << endl;
@@ -179,14 +186,15 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
             reply = clientSocket->read();
             
             if (reply.type() != REPLY_PACKET && reply.type() != ERROR_PACKET) {
-                cerr << "Unexpected packet type!" << endl;
-                // reply.print_specs();
+                string error ("Unexpected packet type!");
+                cerr << error << endl;
                 file.close();
-                return false;
+                return {false, error};
             } else if (reply.type() == ERROR_PACKET) {
-                cout << "Error reply from server: " << get_error_content_from_error_packet(reply) << endl;
+                string error = get_error_content_from_error_packet(reply);
+                cout << "Error reply from server: " << error << endl;
                 file.close();
-                return false;
+                return {false, error};
             }
 
         } while (curr_pos < end);
@@ -199,17 +207,17 @@ bool upload_file(LPTF_Socket *clientSocket, string filename, string targetfile) 
         pckt = build_error_packet(ERROR_PACKET, ERR_CMD_UNKNOWN, msg);
         clientSocket->write(pckt);
         file.close();
-        return false;
+        return {false, msg};
     }
 
     cout << "Upload done." << endl;
 
-    return true;
+    return {true, string()};
 
 }
 
 
-bool delete_file(LPTF_Socket *clientSocket, string filename) {
+ACTION_STATUS delete_file(LPTF_Socket *clientSocket, string filename) {
 
     cout << "Removing file \"" << filename << "\"" << endl;
 
@@ -221,7 +229,7 @@ bool delete_file(LPTF_Socket *clientSocket, string filename) {
 }
 
 
-bool list_directory(LPTF_Socket *clientSocket, string pathname) {
+ACTION_STATUS list_directory(LPTF_Socket *clientSocket, string pathname) {
     
     cout << "Listing directory \"" << pathname << "\"" << endl;
 
@@ -233,7 +241,7 @@ bool list_directory(LPTF_Socket *clientSocket, string pathname) {
 }
 
 
-bool create_directory(LPTF_Socket *clientSocket, string folder) {
+ACTION_STATUS create_directory(LPTF_Socket *clientSocket, string folder) {
 
     cout << "Creating directory \"" << folder << "\"" << endl;
 
@@ -245,7 +253,7 @@ bool create_directory(LPTF_Socket *clientSocket, string folder) {
 }
 
 
-bool remove_directory(LPTF_Socket *clientSocket, string folder) {
+ACTION_STATUS remove_directory(LPTF_Socket *clientSocket, string folder) {
 
     cout << "Removing directory " << folder << endl;
 
@@ -257,7 +265,7 @@ bool remove_directory(LPTF_Socket *clientSocket, string folder) {
 }
 
 
-bool rename_directory(LPTF_Socket *clientSocket, string newname, string path) {
+ACTION_STATUS rename_directory(LPTF_Socket *clientSocket, string newname, string path) {
 
     cout << "Renaming directory \"" << path << "\" to \"" << newname << "\"" << endl;
 
